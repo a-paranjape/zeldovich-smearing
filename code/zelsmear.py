@@ -18,7 +18,7 @@ from cobaya.theory import Theory
 #########################################
 class ZeldovichSmearingLike(Likelihood,Utilities):
     #########################################
-    svals = None # should be specified as 1-d array of values in Mpc/h_fid
+    scales_file = None # needed for reading scales
     cov_file = None # needed for reading covariance matrix
     data_file = None # needed for reading data
     rescale = 1.0
@@ -29,11 +29,13 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
     def initialize(self):
         Utilities.__init__(self)
 
-        if self.svals is None:
-            raise Exception("svals should be 1-d array with values in Mpc/h_fid in ZeldovichSmearingLike.")
-        
-        self.N_Data = self.svals.size
         self.offset = self.L_Max if self.include_sig2obs else 0
+        
+        if self.scales_file is None:
+            raise Exception("scales_file should be valid file path in ZeldovichSmearingLike.")
+        
+        self.svals = np.loadtxt(self.scales_file)        
+        self.N_Data = self.svals.size
         
         expected_size = self.L_Max*self.N_Data
         if self.include_sig2obs:
@@ -198,7 +200,8 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     n_r = 100 # 100 gives LP convergence error ~0.1%, i.e. 3x smaller than DESI expectation
     acc_vals = {'low':8.0,'mid':24.0,'high':48.0}
     accuracy = 'low'
-    svals = None # should be specified as 1-d array of values in Mpc/h_fid
+    scales_file = None # needed for reading scales
+    # svals = None # should be specified as 1-d array of values in Mpc/h_fid
     Rpiv2 = 2.5**2 # fixed pivot of 2.5Mpc/h_fid
     L_Max = 3 # 1,2 or 3
     sdbmc = True # default True. if False, dynamically set sigma = sqrt(2)*sigv for consistency with 'no sdbmc'.
@@ -206,8 +209,10 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     def initialize(self):
         Utilities.__init__(self)
 
-        if self.svals is None:
-            raise Exception("svals should be 1-d array with values in Mpc/h_fid in ZeldovichSmearingTheory.")
+        if self.scales_file is None:
+            raise Exception("scales_file should be valid file path in ZeldovichSmearingLike.")
+        
+        self.svals = np.loadtxt(self.scales_file)        
 
         self.offset = 1 if self.include_sig2obs else 0
 
@@ -216,7 +221,8 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         ##########################
         # read setup parameters
         with open(self.basis_stem + '.pkl', 'rb') as f:
-            params_setup = pickle.load(f)            
+            params_setup = pickle.load(f)
+        params_setup['file_stem'] = self.basis_stem
         # initialize class
         self.binet = BiSequential(params=params_setup)
         # load network parameters from files
@@ -519,7 +525,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
 
     #########################################
     def calc_xiMC(self,params_dict):
-        """ Calculate propagator term of config space multipoles at self.svals.
+        """ Calculate mode-coupling term of config space multipoles at self.svals.
             Returns array of shape (self.L_Max,self.svals.size)
         """
         beta = params_dict['beta']

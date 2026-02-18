@@ -459,8 +459,8 @@ class ZeldovichSmearingTheory(Theory,Utilities):
 
 
     #########################################
-    def calc_xiprop(self,params_dict):
-        """ Calculate propagator term of config space multipoles at self.svals.
+    def calc_xiNL(self,params_dict):
+        """ Calculate propagator + mode-coupling terms of config space multipoles at self.svals.
             Returns array of shape (self.L_Max,self.svals.size)
         """
         beta = params_dict['beta']
@@ -472,112 +472,65 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         sigma = params_dict['sigma'] # can we exploit very low sampling speed of sigma?
         B1 = params_dict['B1st'] + 0.5*sigma**2/self.Rpiv2
 
-        # AMC = params_dict['AMC'] # not needed in xi_prop
+        AMC = params_dict['AMC'] 
         
         f = beta*b
         kstsq = f*(f+2)*sigv**2 
-        
+
+        # storage for propagator and mode-coupling terms
         xi_prop = np.zeros((self.L_Max,self.svals.size),dtype=float)
+        xi_MC = np.zeros((self.L_Max,self.svals.size),dtype=float)
         
         lambda_m = self.calc_lambda(sigma) # (m,s)
-        # lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
         if self.L_Max == 1:
             Lambda_m_n = self.calc_der_Lambda(sigma) # (n,m,s)
         else:
             lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
 
         eta_ellJ = self.calc_eta_ellJ(beta,B1,Bvst,kstsq)
+        psi_ellJ = self.calc_eta_ellJ(beta,B1,Bvst,kstsq=None)
 
+        # prop
         xi_temp = eta_ellJ[0,0]*lambda_m - (eta_ellJ[0,1]*Lambda_m_n[1] - eta_ellJ[0,2]*Lambda_m_n[3])/self.svals # (m,s)
-        # xi_temp = eta_ellJ[0,0]*lambda_m # (m,s)
-        # xi_temp -= eta_ellJ[0,1]*(lambda_m_n[1] + 2*lambda_m_n[0]/self.svals)
-        # xi_temp += eta_ellJ[0,2]*(lambda_m_n[3] + 4*lambda_m_n[2]/self.svals)
         xi_prop[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
-        # chkd
+
+        # MC
+        xi_temp = psi_ellJ[0,0]*(Lambda_m_n[0] - lambda_m) # (m,s)
+        xi_temp -= psi_ellJ[0,1]*(Lambda_m_n[2] - Lambda_m_n[1]/self.svals)
+        xi_temp += psi_ellJ[0,2]*(Lambda_m_n[4] - Lambda_m_n[3]/self.svals) 
+        xi_MC[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
+        
 
         if self.L_Max > 1:
             qbar2 = params_dict['qbar2']
             lambda_m_bar,lambda_m_barbar = self.calc_lambda_bars(sigma)
             s2 = self.svals**2
             s3 = s2*self.svals
-            
+
+            # prop
             xi_temp = eta_ellJ[1,0]*(lambda_m - lambda_m_bar) # (m,s)
             xi_temp -= eta_ellJ[1,1]*(lambda_m_n[1] - lambda_m_n[0]/self.svals)
-            # xi_temp += eta_ellJ[1,2]*(lambda_m_n[3] - lambda_m_n[2]/self.svals)
-            xi_temp += eta_ellJ[1,2]*(lambda_m_n[3] + lambda_m_n[2]/self.svals - 6*lambda_m_n[1]/s2 + 6*lambda_m_n[0]/s3) # fixed 24/01/26
+            xi_temp += eta_ellJ[1,2]*(lambda_m_n[3] + lambda_m_n[2]/self.svals - 6*lambda_m_n[1]/s2 + 6*lambda_m_n[0]/s3) 
             xi_prop[1] = np.sum(xi_temp.T*w_m,axis=1) - eta_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
-            # chkd
+
+            # MC
+            xi_temp = psi_ellJ[1,0]*(3*(lambda_m_bar - lambda_m) + self.svals*lambda_m_n[0]) # (m,s)
+            xi_temp -= psi_ellJ[1,1]*(self.svals*lambda_m_n[2] - lambda_m_n[1] + lambda_m_n[0]/self.svals)
+            xi_temp += psi_ellJ[1,2]*(self.svals*lambda_m_n[4] + lambda_m_n[3] - 7*lambda_m_n[2]/self.svals + 18*lambda_m_n[1]/s2 - 18*lambda_m_n[0]/s3) 
+            xi_MC[1] = np.sum(xi_temp.T*w_m,axis=1) + 3*psi_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
             
             if self.L_Max == 3:
                 qbar4 = params_dict['qbar4']
-                
+
+                # prop
                 xi_temp = eta_ellJ[2,0]*(lambda_m + 2.5*lambda_m_bar - 3.5*lambda_m_barbar) # (m,s)
                 xi_temp -= eta_ellJ[2,1]*(lambda_m_n[1] - 8*lambda_m_n[0]/self.svals + 35*(lambda_m - lambda_m_bar)/s2)
                 xi_temp += eta_ellJ[2,2]*(lambda_m_n[3] - 6*lambda_m_n[2]/self.svals + 15*lambda_m_n[1]/s2 - 15*lambda_m_n[0]/s3)
                 qbar_contrib = 2.5*eta_ellJ[2,0]*qbar2*self.sminBys3
                 qbar_contrib += self.sminBys5*(35*eta_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*eta_ellJ[2,0]*qbar4)
                 xi_prop[2] = np.sum(xi_temp.T*w_m,axis=1) + qbar_contrib # (s,)
-                # chkd
 
-        return xi_prop
-    #########################################
-
-
-    #########################################
-    def calc_xiMC(self,params_dict):
-        """ Calculate mode-coupling term of config space multipoles at self.svals.
-            Returns array of shape (self.L_Max,self.svals.size)
-        """
-        beta = params_dict['beta']
-        # sigv = params_dict['sigv'] # not needed in xi_MC
-        w_m = np.array([params_dict[key] for key in self.w_names])
-        
-        # b = params_dict['b'] # not needed in xi_MC
-        Bvst = params_dict['Bvst']
-        sigma = params_dict['sigma'] # can we exploit very low sampling speed of sigma?
-        B1 = params_dict['B1st'] + 0.5*sigma**2/self.Rpiv2
-
-        AMC = params_dict['AMC'] 
-        
-        # f = beta*b
-        # kstsq = f*(f+2)*sigv**2 # not needed in xi_MC
-        
-        xi_MC = np.zeros((self.L_Max,self.svals.size),dtype=float)
-        
-        lambda_m = self.calc_lambda(sigma) # (m,s)
-        # lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
-        if self.L_Max == 1:
-            Lambda_m_n = self.calc_der_Lambda(sigma) # (n,m,s)
-        else:
-            lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
-
-        psi_ellJ = self.calc_eta_ellJ(beta,B1,Bvst,kstsq=None)
-
-        xi_temp = psi_ellJ[0,0]*(Lambda_m_n[0] - lambda_m) # (m,s)
-        xi_temp -= psi_ellJ[0,1]*(Lambda_m_n[2] - Lambda_m_n[1]/self.svals)
-        xi_temp += psi_ellJ[0,2]*(Lambda_m_n[4] - Lambda_m_n[3]/self.svals) 
-        # xi_temp = psi_ellJ[0,0]*self.svals*lambda_m_n[0] # (m,s)
-        # xi_temp -= psi_ellJ[0,1]*(self.svals*lambda_m_n[2] + 2*lambda_m_n[1] - 2*lambda_m_n[0]/self.svals)
-        # xi_temp += psi_ellJ[0,2]*(self.svals*lambda_m_n[4] + 4*lambda_m_n[3] - 4*lambda_m_n[2]/self.svals)
-        xi_MC[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
-        # chkd
-
-        if self.L_Max > 1:
-            qbar2 = params_dict['qbar2']
-            lambda_m_bar,lambda_m_barbar = self.calc_lambda_bars(sigma)
-            s2 = self.svals**2
-            s3 = s2*self.svals
-            
-            xi_temp = psi_ellJ[1,0]*(3*(lambda_m_bar - lambda_m) + self.svals*lambda_m_n[0]) # (m,s)
-            xi_temp -= psi_ellJ[1,1]*(self.svals*lambda_m_n[2] - lambda_m_n[1] + lambda_m_n[0]/self.svals)
-            # xi_temp += psi_ellJ[1,2]*(self.svals*lambda_m_n[4] - lambda_m_n[3] + lambda_m_n[2]/self.svals)
-            xi_temp += psi_ellJ[1,2]*(self.svals*lambda_m_n[4] + lambda_m_n[3] - 7*lambda_m_n[2]/self.svals + 18*lambda_m_n[1]/s2 - 18*lambda_m_n[0]/s3) # fixed 24/01/26
-            xi_MC[1] = np.sum(xi_temp.T*w_m,axis=1) + 3*psi_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
-            # chkd
-            
-            if self.L_Max == 3:
-                qbar4 = params_dict['qbar4']
-                
+                # MC
                 xi_temp = psi_ellJ[2,0]*(self.svals*lambda_m_n[0] - 10*lambda_m - 7.5*lambda_m_bar + 17.5*lambda_m_barbar) # (m,s)
                 xi_temp -= psi_ellJ[2,1]*(self.svals*lambda_m_n[2] - 8*lambda_m_n[1] + 43*lambda_m_n[0]/self.svals - 175*(lambda_m - lambda_m_bar)/s2)
                 xi_temp += psi_ellJ[2,2]*(self.svals*lambda_m_n[4] - 6*lambda_m_n[3] + 21*lambda_m_n[2]/self.svals - 45*lambda_m_n[1]/s2 + 45*lambda_m_n[0]/s3)
@@ -585,11 +538,10 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                 qbar_contrib += self.sminBys5*(35*psi_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*psi_ellJ[2,0]*qbar4)
                 qbar_contrib *= 5.0
                 xi_MC[2] = np.sum(xi_temp.T*w_m,axis=1) - qbar_contrib # (s,)
-                # chkd
-
+                
         xi_MC *= AMC
-        
-        return xi_MC
+                
+        return xi_prop + xi_MC
     #########################################
 
     ############################################################
@@ -694,9 +646,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
             state['model'] = np.inf*np.ones(self.dim)
             return
         
-        xi_prop = self.calc_xiprop(params_dict)
-        xi_MC = self.calc_xiMC(params_dict)
-        xiNL = xi_prop + xi_MC # (L_Max,s)
+        xiNL = self.calc_xiNL(params_dict) # (L_Max,s)
 
         if self.modify_data & (self.L_Max > 1):
             xiNL[1] -= self.sminBys3*xiNL[1,0]
@@ -747,6 +697,129 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         return xi_proto
     #########################################
 
+
+    #########################################
+    # useful for external plotting
+    #########################################
+    def calc_xiprop(self,params_dict):
+        """ Calculate propagator term of config space multipoles at self.svals.
+            Returns array of shape (self.L_Max,self.svals.size)
+        """
+        beta = params_dict['beta']
+        sigv = params_dict['sigv']
+        w_m = np.array([params_dict[key] for key in self.w_names])
+        
+        b = params_dict['b']
+        Bvst = params_dict['Bvst']
+        sigma = params_dict['sigma'] # can we exploit very low sampling speed of sigma?
+        B1 = params_dict['B1st'] + 0.5*sigma**2/self.Rpiv2
+
+        # AMC = params_dict['AMC'] # not needed in xi_prop
+        
+        f = beta*b
+        kstsq = f*(f+2)*sigv**2 
+        
+        xi_prop = np.zeros((self.L_Max,self.svals.size),dtype=float)
+        
+        lambda_m = self.calc_lambda(sigma) # (m,s)
+        if self.L_Max == 1:
+            Lambda_m_n = self.calc_der_Lambda(sigma) # (n,m,s)
+        else:
+            lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
+
+        eta_ellJ = self.calc_eta_ellJ(beta,B1,Bvst,kstsq)
+
+        xi_temp = eta_ellJ[0,0]*lambda_m - (eta_ellJ[0,1]*Lambda_m_n[1] - eta_ellJ[0,2]*Lambda_m_n[3])/self.svals # (m,s)
+        xi_prop[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
+
+        if self.L_Max > 1:
+            qbar2 = params_dict['qbar2']
+            lambda_m_bar,lambda_m_barbar = self.calc_lambda_bars(sigma)
+            s2 = self.svals**2
+            s3 = s2*self.svals
+            
+            xi_temp = eta_ellJ[1,0]*(lambda_m - lambda_m_bar) # (m,s)
+            xi_temp -= eta_ellJ[1,1]*(lambda_m_n[1] - lambda_m_n[0]/self.svals)
+            xi_temp += eta_ellJ[1,2]*(lambda_m_n[3] + lambda_m_n[2]/self.svals - 6*lambda_m_n[1]/s2 + 6*lambda_m_n[0]/s3) 
+            xi_prop[1] = np.sum(xi_temp.T*w_m,axis=1) - eta_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
+            
+            if self.L_Max == 3:
+                qbar4 = params_dict['qbar4']
+                
+                xi_temp = eta_ellJ[2,0]*(lambda_m + 2.5*lambda_m_bar - 3.5*lambda_m_barbar) # (m,s)
+                xi_temp -= eta_ellJ[2,1]*(lambda_m_n[1] - 8*lambda_m_n[0]/self.svals + 35*(lambda_m - lambda_m_bar)/s2)
+                xi_temp += eta_ellJ[2,2]*(lambda_m_n[3] - 6*lambda_m_n[2]/self.svals + 15*lambda_m_n[1]/s2 - 15*lambda_m_n[0]/s3)
+                qbar_contrib = 2.5*eta_ellJ[2,0]*qbar2*self.sminBys3
+                qbar_contrib += self.sminBys5*(35*eta_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*eta_ellJ[2,0]*qbar4)
+                xi_prop[2] = np.sum(xi_temp.T*w_m,axis=1) + qbar_contrib # (s,)
+
+        return xi_prop
+    #########################################
+
+
+    #########################################
+    # useful for external plotting
+    #########################################
+    def calc_xiMC(self,params_dict):
+        """ Calculate mode-coupling term of config space multipoles at self.svals.
+            Returns array of shape (self.L_Max,self.svals.size)
+        """
+        beta = params_dict['beta']
+        # sigv = params_dict['sigv'] # not needed in xi_MC
+        w_m = np.array([params_dict[key] for key in self.w_names])
+        
+        # b = params_dict['b'] # not needed in xi_MC
+        Bvst = params_dict['Bvst']
+        sigma = params_dict['sigma'] # can we exploit very low sampling speed of sigma?
+        B1 = params_dict['B1st'] + 0.5*sigma**2/self.Rpiv2
+
+        AMC = params_dict['AMC'] 
+        
+        # f = beta*b
+        # kstsq = f*(f+2)*sigv**2 # not needed in xi_MC
+        
+        xi_MC = np.zeros((self.L_Max,self.svals.size),dtype=float)
+        
+        lambda_m = self.calc_lambda(sigma) # (m,s)
+        if self.L_Max == 1:
+            Lambda_m_n = self.calc_der_Lambda(sigma) # (n,m,s)
+        else:
+            lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
+
+        psi_ellJ = self.calc_eta_ellJ(beta,B1,Bvst,kstsq=None)
+
+        xi_temp = psi_ellJ[0,0]*(Lambda_m_n[0] - lambda_m) # (m,s)
+        xi_temp -= psi_ellJ[0,1]*(Lambda_m_n[2] - Lambda_m_n[1]/self.svals)
+        xi_temp += psi_ellJ[0,2]*(Lambda_m_n[4] - Lambda_m_n[3]/self.svals) 
+        xi_MC[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
+
+        if self.L_Max > 1:
+            qbar2 = params_dict['qbar2']
+            lambda_m_bar,lambda_m_barbar = self.calc_lambda_bars(sigma)
+            s2 = self.svals**2
+            s3 = s2*self.svals
+            
+            xi_temp = psi_ellJ[1,0]*(3*(lambda_m_bar - lambda_m) + self.svals*lambda_m_n[0]) # (m,s)
+            xi_temp -= psi_ellJ[1,1]*(self.svals*lambda_m_n[2] - lambda_m_n[1] + lambda_m_n[0]/self.svals)
+            xi_temp += psi_ellJ[1,2]*(self.svals*lambda_m_n[4] + lambda_m_n[3] - 7*lambda_m_n[2]/self.svals + 18*lambda_m_n[1]/s2 - 18*lambda_m_n[0]/s3) 
+            xi_MC[1] = np.sum(xi_temp.T*w_m,axis=1) + 3*psi_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
+            
+            if self.L_Max == 3:
+                qbar4 = params_dict['qbar4']
+                
+                xi_temp = psi_ellJ[2,0]*(self.svals*lambda_m_n[0] - 10*lambda_m - 7.5*lambda_m_bar + 17.5*lambda_m_barbar) # (m,s)
+                xi_temp -= psi_ellJ[2,1]*(self.svals*lambda_m_n[2] - 8*lambda_m_n[1] + 43*lambda_m_n[0]/self.svals - 175*(lambda_m - lambda_m_bar)/s2)
+                xi_temp += psi_ellJ[2,2]*(self.svals*lambda_m_n[4] - 6*lambda_m_n[3] + 21*lambda_m_n[2]/self.svals - 45*lambda_m_n[1]/s2 + 45*lambda_m_n[0]/s3)
+                qbar_contrib = 1.5*psi_ellJ[2,0]*qbar2*self.sminBys3
+                qbar_contrib += self.sminBys5*(35*psi_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*psi_ellJ[2,0]*qbar4)
+                qbar_contrib *= 5.0
+                xi_MC[2] = np.sum(xi_temp.T*w_m,axis=1) - qbar_contrib # (s,)
+
+        xi_MC *= AMC
+        
+        return xi_MC
+    #########################################
+    
     #########################################
     def get_model(self):
         return self.current_state['model']

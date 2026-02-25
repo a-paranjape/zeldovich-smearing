@@ -1,6 +1,11 @@
 import numpy as np
-import sys,fitsio,gc
+import sys,gc#,fitsio
 from pathlib import Path
+from astropy.io import fits
+from astropy.cosmology import FlatLambdaCDM
+import astropy.units as u
+SPEED_OF_LIGHT = 3e5*u.km/u.s
+
 
 from paths import *
 
@@ -16,15 +21,19 @@ import matplotlib.pyplot as plt
 
 ut = Utilities()
 
-def queuer_box(phase,tpcf,powspec,aniso,los,redshift,M_min,kmin,kmax,h_fid,max_file,ddstem,down_to,rng,do_2pcf,do_Pk,mdict):
+def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,kmin,kmax,h_fid,max_file,ddstem,down_to,rng,do_2pcf,do_Pk,mdict):
     data_dir = ddstem + '{0:03d}/z{1:.3f}/'.format(phase,redshift)
-    print(data_dir+'\n')        
-    data = fitsio.read(data_dir+'sub_0_nsub_4.fits')
+    print(data_dir+'\n')
+    # data = fitsio.read(data_dir+'sub_0_nsub_4.fits')
+    with fits.open(data_dir+'sub_0_nsub_4.fits') as hdu:
+        data = hdu[1].data
     data_size_orig = data['Mabacus'].size
     data = data[data['Mabacus'] >= M_min]
     ut.status_bar(0,max_file)
     for i in range(1,max_file):
-        data_i = fitsio.read(data_dir+'sub_{0:d}_nsub_4.fits'.format(i))
+        # data_i = fitsio.read(data_dir+'sub_{0:d}_nsub_4.fits'.format(i))
+        with fits.open(data_dir+'sub_{0:d}_nsub_4.fits'.format(i)) as hdu_i:
+            data_i = hdu_i[1].data
         data_size_orig += data_i['Mabacus'].size
         data_i = data_i[data_i['Mabacus'] >= M_min]
         data = np.concatenate((data,data_i))
@@ -61,27 +70,31 @@ def queuer_box(phase,tpcf,powspec,aniso,los,redshift,M_min,kmin,kmax,h_fid,max_f
 
         # add real-space separation
         zred += data_use[:,los]
-
-        # account for pbc
-        zred = zred % Lbox
-
-        # store as final separation
+        
+        # store final los separation
         data_use[:,los] = zred
+
+        # account for true-to-fiducial conversion
+        non_los = np.where(np.arange(3) != los)[0]
+        data_use[:,los] *= alpha_par
+        data_use[:,non_los] *= alpha_perp
+        
+        # account for pbc
+        data_use %= Lbox
+        
         del zred
         
     del ind,data
     gc.collect()
 
-    hfid_by_h = h_fid/h
-    data_use *= hfid_by_h # convert to Mpc/h_fid
+    data_use *= (h_fid/h) # convert to Mpc/h_fid [ONLY place that this is needed in this routine]
 
-    mdict[phase] = {}
+    temp = {}
     if do_2pcf:
-        tpcf.Lbox *= hfid_by_h
         if aniso & (tpcf.los != los):
             raise Exception('Mismatched los in tpcf')
         start_time = time()
-        mdict[phase]['2pcf'] = tpcf.auto_CF(data_use)
+        temp['2pcf'] = tpcf.auto_CF(data_use)
         ut.time_this(start_time)
         
     if do_Pk:
@@ -89,11 +102,10 @@ def queuer_box(phase,tpcf,powspec,aniso,los,redshift,M_min,kmin,kmax,h_fid,max_f
             raise Exception('Mismatched los in powspec')
         start_time = time()
         Pk = powspec.Pk_grid(data_use.T,aniso=aniso)
-        mdict[phase]['Pk'] = Pk
+        temp['Pk'] = Pk
         ut.time_this(start_time)
 
         if aniso:
-            # below can be made more robust to binning. currently demands linear binning.
             Sig2obs = np.zeros(powspec.L_Max)
             if powspec.lgbin is not None:
                 print("Warning!: non-linear k-bins detected. Not calculating Sig2obs.")
@@ -102,11 +114,18 @@ def queuer_box(phase,tpcf,powspec,aniso,los,redshift,M_min,kmin,kmax,h_fid,max_f
                 if ind_k.size:
                     # Pk has shape (L,k)
                     Sig2obs += np.sum(Pk.T[ind_k],axis=0)*powspec.dk/(6*np.pi**2)
-                    
-            Sig2obs *= hfid_by_h**2 # convert to (Mpc/h_fid)^2
+
+            # powspec arrays already in Mpc/h_fid units
+            # Sig2obs *= hfid_by_h**2 # convert to (Mpc/h_fid)^2
             
-            mdict[phase]['Sig2obs'] = Sig2obs
-                
+            temp['Sig2obs'] = Sig2obs
+
+    mdict[phase] = temp
+    return
+
+def check_units(name,quantity,expected_unit):
+    if quantity.unit != expected_unit:
+        raise Exception('expecting unit',expected_unit,'for',name+', got',quantity.unit)
     return
 
 if __name__ == "__main__":
@@ -117,8 +136,8 @@ if __name__ == "__main__":
     
     ml = MLUtilities()
 
-    Do_2pcf = False
-    Do_Pk = True
+    Do_2pcf = True
+    Do_Pk = False
     
     Down_To = 1   # default 1
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
@@ -131,11 +150,49 @@ if __name__ == "__main__":
     Aniso = True
     LOS = 2
     L_Max = 3
-    h_fid = 0.6737 # h in fiducial cosmology, from arXiv:2410.21374
+
+    # Abacus baseline c000 cosmology
+    co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Neff=3.04,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255)
+    # co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Tcmb0=2.7255)
+    print('abacus cosmo c000:',co_c000)
+    # ... distances
+    d_Hub = (SPEED_OF_LIGHT/co_c000.H(Redshift))
+    d_Ang_com = (1+Redshift)*co_c000.angular_diameter_distance(Redshift)
+    # ... check units
+    check_units('d_Hub',d_Hub,'Mpc')
+    check_units('d_Ang_com',d_Ang_com,'Mpc')
+
+    # fiducial cosmology, from arXiv:2410.21374
+    h_fid = 0.6737 
+    co_fid = FlatLambdaCDM(H0=100*h_fid,Om0=0.3153,Ob0=0.04929,Tcmb0=2.7255)
+    print('   fiducial cosmo:',co_fid)
+    # ... distances
+    d_Hub_fid = (SPEED_OF_LIGHT/co_fid.H(Redshift))
+    d_Ang_com_fid = (1+Redshift)*co_fid.angular_diameter_distance(Redshift)
+    # ... check units
+    check_units('d_Hub_fid',d_Hub_fid,'Mpc')
+    check_units('d_Ang_com_fid',d_Ang_com_fid,'Mpc')
+
+    print('... h = {0:.4f}; h_fid = {1:.4f}'.format(co_c000.h,h_fid))
+    hfid_by_h = h_fid/co_c000.h
+    
+    alpha_par = d_Hub_fid.value/d_Hub.value
+    alpha_perp = d_Ang_com_fid.value/d_Ang_com.value
+
+    alpha_AP = alpha_perp/alpha_par
+    alpha_iso = (alpha_par*alpha_perp**2)**(1/3.)
+
+    DaAP = alpha_AP - 1.0
+    Daiso = alpha_iso - 1.0
+
+    print('alpha_par : 1 + {0:.3e}'.format(alpha_par-1))
+    print('alpha_perp: 1 + {0:.3e}'.format(alpha_perp-1))
+    print(' DaAP: {0:+.3e}'.format(DaAP))
+    print('Daiso: {0:+.3e}'.format(Daiso))
     
     Abacus_Stem = Abacus_Path + 'AbacusSummit_base_c000_ph'
-    Lbox_AbacusSummit = 2000.0 # AbacusSummit box size in Mpc/h (not Mpc/h_fid)
-
+    Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
+    
     # 1.25e13, 8e12 Table 2 of arXiv:1607.05383 says lgMmin=13.67, sig_lgM=0.81 at z >~ 0.7, so 10**(13.67-0.81) = 7.2e12
     M_min = 8e12 if Redshift > 0.5 else 1.25e13 
     print('Retaining halos with M >= {0:.2e} Msun/h'.format(M_min))
@@ -149,6 +206,7 @@ if __name__ == "__main__":
         tpcf = None
 
     if Do_Pk:
+        # interpret all scales in h_fid/Mpc
         K_Min_Pk,K_Max_Pk,N_Kbin = 0.01,0.2,19
         powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Lbox_AbacusSummit,lgbin=None,nbin=N_Kbin,anisotropic=Aniso,los=LOS)
         K_Min,K_Max = 0.02,0.05
@@ -160,7 +218,7 @@ if __name__ == "__main__":
     rng = np.random.RandomState(42)
 
     if Do_2pcf:
-        task_tuple = (tpcf,powspec,Aniso,LOS,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk)
+        task_tuple = (tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk)
         tasks = [task_tuple]*N_Real
         # tasks = []
         # for phase in range(N_Real):
@@ -170,7 +228,7 @@ if __name__ == "__main__":
     if Do_Pk:
         pw_dict = {}
         for phase in range(N_Real):
-            queuer_box(phase,tpcf,powspec,Aniso,LOS,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,pw_dict)
+            queuer_box(phase,tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,pw_dict)
 
     if Do_2pcf:
         file_stem_2pcf = 'xi'

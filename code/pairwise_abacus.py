@@ -354,9 +354,9 @@ if __name__ == "__main__":
         print('Writing to file: ',Pk_file)
         with open(Pk_file,'w') as f:
             if Aniso:
-                f.write("# k (h/Mpc) | ( Pk|err_Pk )_{ell="+','.join([str(2*L) for L in range(L_Max)])+"} (Mpc/h)^3\n")
+                f.write("# k (h_fid/Mpc) | ( Pk|err_Pk )_{ell="+','.join([str(2*L) for L in range(L_Max)])+"} (Mpc/h_fid)^3\n")
             else:
-                f.write("# k (h/Mpc) | (Pk | err_Pk) (Mpc/h)^3\n")
+                f.write("# k (h_fid/Mpc) | (Pk | err_Pk) (Mpc/h_fid)^3\n")
         for k in range(powspec.nbin):
             if Aniso:
                 seq = [powspec.ktab[k]]
@@ -374,9 +374,9 @@ if __name__ == "__main__":
             Pk_file_phase = Pk_phase_stem + ph_str + '.txt'
             with open(Pk_file_phase,'w') as f:
                 if Aniso:
-                    f.write("# k (h/Mpc) | ( Pk|err_Pk )_{ell="+','.join([str(2*L) for L in range(L_Max)])+"} (Mpc/h)^3\n")
+                    f.write("# k (h_fid/Mpc) | Pk_{ell="+','.join([str(2*L) for L in range(L_Max)])+"} (Mpc/h_fid)^3\n")
                 else:
-                    f.write("# k (h/Mpc) | (Pk | err_Pk) (Mpc/h)^3\n")
+                    f.write("# k (h_fid/Mpc) | Pk (Mpc/h_fid)^3\n")
             for k in range(powspec.nbin):
                 if Aniso:
                     seq = [powspec.ktab[k]]
@@ -390,7 +390,7 @@ if __name__ == "__main__":
         if Aniso:
             print('Writing to file: ',Sig2obs_file)
             with open(Sig2obs_file,'w') as f:
-                f.write("# (Sig2obs | err) (Mpc/h)^2\n")
+                f.write("# (Sig2obs | err) (Mpc/h_fid)^2\n")
             for L in range(L_Max):
                 ut.write_to_file(Sig2obs_file,[Sig2obs[L],err_Sig2obs[L]])
 
@@ -399,7 +399,7 @@ if __name__ == "__main__":
                 ph_str = '{0:03d}'.format(phase)
                 print('... phase '+ph_str)
                 Sig2obs_file_phase = Sig2obs_phase_stem + ph_str + '.txt'
-                np.savetxt(Sig2obs_file_phase,Sig2obs_phases[phase],fmt='%.8e',header="Sig2obs (Mpc/h)^2")
+                np.savetxt(Sig2obs_file_phase,Sig2obs_phases[phase],fmt='%.8e',header="Sig2obs (Mpc/h_fid)^2")
 
                 
                     

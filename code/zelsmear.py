@@ -19,17 +19,19 @@ from cobaya.theory import Theory
 class ZeldovichSmearingLike(Likelihood,Utilities):
     #########################################
     scales_file = None # needed for reading scales
-    cov_file = None # needed for reading covariance matrix
+    cov_file = None # needed for reading covariance matrix [expect single string]
     data_file = None # needed for reading data
+                     # expect list with [filename_Sig2obs,filename_ell] if include_sig2obs == True else
+                     # single string with filename_xiell.
     rescale = 1.0
     L_Max = 3 # 1,2 or 3
     modify_data = False
-    include_sig2obs = False
+    include_Sig2obs = False
     #########################################
     def initialize(self):
         Utilities.__init__(self)
 
-        self.offset = self.L_Max if self.include_sig2obs else 0
+        self.offset = self.L_Max if self.include_Sig2obs else 0
         
         if self.scales_file is None:
             raise Exception("scales_file should be valid file path in ZeldovichSmearingLike.")
@@ -38,11 +40,11 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
         self.N_Data = self.svals.size
         
         expected_size = self.L_Max*self.N_Data
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             expected_size += self.L_Max
 
         if self.data_file is None:
-            raise Exception("data_file should be valid file path in ZeldovichSmearingLike.")
+            raise Exception("data_file should be valid (list of) file path(s) in ZeldovichSmearingLike.")
         if self.cov_file is None:
             raise Exception("cov_file should be valid file path in ZeldovichSmearingLike.")
 
@@ -51,14 +53,20 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
         if cov_data.shape != (expected_size,expected_size):
             raise Exception("Expecting cov_data matrix of shape ({0:d},{0:d}) in ZeldovichSmearingLike, found shape (".format(expected_size)
                             +','.join([str(d) for d in cov_data.shape])+')')
-        # if self.toy:
-        data = np.loadtxt(self.data_file)
+        data = np.array([])
+        if self.include_Sig2obs:
+            # expect 2 data files
+            if len(self.data_file)==2:
+                data = np.concatenate((np.loadtxt(self.data_file[0]),np.loadtxt(self.data_file[1])))
+            else:
+                raise Exception("Expecting data_file to be list with [filename_Sig2obs,filename_xiell].")
+        else:
+            data = np.loadtxt(self.data_file)
+
         # check data vector
         if data.shape != (expected_size,):
             raise Exception("Expecting data vector of shape ({0:d},) in ZeldovichSmearingLike, found shape (".format(expected_size)
                             +','.join([str(d) for d in data.shape])+')')
-        # else:
-        #     data = self.bdh.Xi_Data.copy()
 
         self.data,self.cov_data = self.organize_data(data,cov_data)            
         self.Dim_Data = self.data.size
@@ -88,7 +96,7 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
             
         data *= self.rescale
         cov_data_use *= self.rescale**2
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             # undo effect of rescale on Sig2obs.
             data[:self.L_Max] /= self.rescale
             cov_data_use[:self.L_Max,:self.L_Max] /= self.rescale**2
@@ -128,7 +136,7 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
                             cov_mod[self.offset+i+L*self.N_Data,self.offset+j+Lpr*self.N_Data] += delta_C
                 del S_ell,S_ell_pr
                 
-            if self.include_sig2obs:
+            if self.include_Sig2obs:
                 for L in range(self.L_Max):
                     for i in range(self.N_Data):
                         delta_C = -g_L[L]*sminBys3[i]*cov_data_use[:self.L_Max,self.offset+i+L*self.N_Data]
@@ -149,9 +157,9 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
     #########################################
     def wrap_model(self,xi):
         """ Convenience function to convert 1-d array of data/model used by likelihood into list of arrays useful for plotting. """
-        off = 1 if self.include_sig2obs else 0
+        off = 1 if self.include_Sig2obs else 0
         arr_lens = self.N_Data*np.ones(off+self.L_Max,dtype=int) # initialize array lengths
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             arr_lens[0] = self.L_Max # Sig2obs vals will be at start of array if they exist; not used
         if self.modify_data & (self.L_Max > 1):
             for L in range(off+1,off+self.L_Max):
@@ -160,7 +168,7 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
         if xi.size != arr_lens.sum():
             raise Exception('Mismatched sizes in wrap_model().')
         out = [] # build up list ordered by L
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             out.append(xi[:self.L_Max])
         imin = self.offset # not off
         for L in range(off,off+self.L_Max):
@@ -179,7 +187,7 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
             params_values_dict['_derived'][par] = self.provider.get_param(par)
         
         model = self.provider.get_model()*self.rescale
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             model[:self.L_Max] /= self.rescale
         residual = self.data - model
         z = linalg.cho_solve((self.L,True),residual) # solves (L L^T) z = residual or z = C^-1 residual
@@ -192,7 +200,7 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
 class ZeldovichSmearingTheory(Theory,Utilities):
     #########################################
     modify_data = True
-    include_sig2obs = False
+    include_Sig2obs = False
     use_basis = np.arange(9) # list of indices of basis vectors to use
     basis_stem = Basis_Stem # imported from paths by default, can be changed at run time
     r_min = 30.0 # Mpc/h
@@ -214,7 +222,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         
         self.svals = np.loadtxt(self.scales_file)        
 
-        self.offset = 1 if self.include_sig2obs else 0
+        self.offset = 1 if self.include_Sig2obs else 0
 
         ##########################
         # BiSequential basis setup
@@ -260,7 +268,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         self.dim = self.N_Data*self.L_Max
         if self.modify_data & (self.L_Max > 1):
             self.dim -= 1 if self.L_Max==2 else 2
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             self.dim += self.L_Max
 
         # fine svals array for integrals \bar\lambda and \bar\bar\lambda
@@ -602,7 +610,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
 
     #########################################
     def calc_Sig2obs(self,params_dict):
-        """ Calculate Sig2obs values. Only called if self.include_sig2obs is True.
+        """ Calculate Sig2obs values. Only called if self.include_Sig2obs is True.
             Returns array of shape (self.L_Max,)
         """
         fv = params_dict['fv']
@@ -661,7 +669,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
             else:
                 xiNL = np.delete(xiNL,[self.offset+self.N_Data])
 
-        if self.include_sig2obs:
+        if self.include_Sig2obs:
             Sig2obs = self.calc_Sig2obs(params_dict)
             xiNL = np.concatenate((Sig2obs,xiNL))
         

@@ -159,7 +159,7 @@ if __name__ == "__main__":
     print('... working at redshift z = {0:.3f}'.format(Redshift))
 
     Mmin_dict = {'DESI-LRG2':8e12,
-                 # below are tests with 3x DESI volume
+                 # below are existing tests with 3x DESI volume
                  'DESI-LRG2-AP-x3':8e12 if Redshift > 0.5 else 1.25e13,
                  'DESI-LRG2-noAP-x3':8e12 if Redshift > 0.5 else 1.25e13}
     
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     print('... retaining halos with M >= {0:.2e} Msun/h'.format(M_min))
     print('... downsampling by factor {0:d}'.format(Down_To))
 
-    Aniso = True
+    Aniso = False
     LOS = 2
     L_Max = 3
 
@@ -326,22 +326,30 @@ if __name__ == "__main__":
         Pk_phase_stem = data_dir + file_stem_Pk + '_ph'
 
         if Aniso:
-            Pk_reals = np.zeros((N_Phase,L_Max,powspec.nbin))
-            Sig2obs_reals = np.zeros((N_Phase,L_Max))
+            Pk_phases = np.zeros((N_Phase,L_Max,powspec.nbin))
+            Sig2obs_phases = np.zeros((N_Phase,L_Max))
         else:
-            Pk_reals = np.zeros((N_Phase,powspec.nbin))
+            Pk_phases = np.zeros((N_Phase,powspec.nbin))
             
         for phase in range(N_Phase):
-            Pk_reals[phase] = pw_dict[phase]['Pk']
+            Pk_phases[phase] = pw_dict[phase]['Pk']
             if Aniso:
-                Sig2obs_reals[phase] = pw_dict[phase]['Sig2obs']
+                Sig2obs_phases[phase] = pw_dict[phase]['Sig2obs']
 
-        Pk = np.mean(Pk_reals,axis=0)
-        err_Pk = np.std(Pk_reals,axis=0)/np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+        err_Pk = np.std(Pk_phases,axis=0)
+        if Sample[-2-len(str(N_Phase)):] == '-x{0:d}'.format(N_Phase):
+            Pk = np.mean(Pk_phases,axis=0)
+            err_Pk /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+        else:
+            Pk = Pk_phases[Ref_Phase].copy()
 
         if Aniso:
-            Sig2obs = np.mean(Sig2obs_reals,axis=0)
-            err_Sig2obs = np.std(Sig2obs_reals,axis=0)/np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+            err_Sig2obs = np.std(Sig2obs_phases,axis=0)
+            if Sample[-2-len(str(N_Phase)):] == '-x{0:d}'.format(N_Phase):
+                Sig2obs = np.mean(Sig2obs_phases,axis=0)
+                err_Sig2obs /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+            else:
+                Sig2obs = Sig2obs_phases[Ref_Phase].copy()
         
         print('Writing to file: ',Pk_file)
         with open(Pk_file,'w') as f:
@@ -373,10 +381,10 @@ if __name__ == "__main__":
                 if Aniso:
                     seq = [powspec.ktab[k]]
                     for L in range(L_Max):
-                        seq.append(Pk_reals[phase,L,k])
+                        seq.append(Pk_phases[phase,L,k])
                     ut.write_to_file(Pk_file_phase,seq)
                 else:
-                    ut.write_to_file(Pk_file_phase,[powspec.ktab[k],Pk_reals[phase,k]])
+                    ut.write_to_file(Pk_file_phase,[powspec.ktab[k],Pk_phases[phase,k]])
 
 
         if Aniso:
@@ -391,7 +399,7 @@ if __name__ == "__main__":
                 ph_str = '{0:03d}'.format(phase)
                 print('... phase '+ph_str)
                 Sig2obs_file_phase = Sig2obs_phase_stem + ph_str + '.txt'
-                np.savetxt(Sig2obs_file_phase,Sig2obs_reals[phase],fmt='%.8e',header="Sig2obs (Mpc/h)^2")
+                np.savetxt(Sig2obs_file_phase,Sig2obs_phases[phase],fmt='%.8e',header="Sig2obs (Mpc/h)^2")
 
                 
                     

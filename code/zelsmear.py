@@ -214,6 +214,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     Rpiv2 = 2.5**2 # fixed pivot of 2.5Mpc/h_fid
     L_Max = 3 # 1,2 or 3
     sdbmc = True # default True. if False, dynamically set sigma = sqrt(2)*sigv for consistency with 'no sdbmc'.
+    model_AP = True # default True. if True, model effects of anisotropy due to wrong fiducial cosmology
     #########################################
     def initialize(self):
         Utilities.__init__(self)
@@ -224,6 +225,16 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         self.svals = np.loadtxt(self.scales_file)        
 
         self.offset = 1 if self.include_Sig2obs else 0
+
+        self.max_deriv = 6 if self.model_AP else 5 # largest derivative needed for smoothed basis
+        if self.model_AP:
+            # matrices to model AP-type effects due to fiducial cosmology
+            self.Cmat = np.array([[0.,1/5.,0.],
+                                  [1/5.,2/35.,2/35,],
+                                  [0.,2/35.,20/693.]])
+            self.Amat = np.array([[0.,2/5.,0.],
+                                  [0.,2/7.,20/25.],
+                                  [0.,-24/35.,20/77.]])
 
         ##########################
         # BiSequential basis setup
@@ -312,7 +323,6 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     #########################################
 
     #########################################
-    # chkd
     def calc_lambda(self,sigma,fine=False):
         """ Calculate lambda_m(s|sigma) on s=self.svals (fine=False) or self.svals_fine (fine=True). """
         s = self.svals_fine.copy() if fine else self.svals.copy()
@@ -331,27 +341,25 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     #########################################
 
     #########################################
-    # chkd
     def calc_der_Lambda(self,sigma):
-        """ Calculate Lambda_m^{(n)}(s|sigma) on s=self.svals for 1 <= n <= 5. """
-
-        sig_inv_n = (-1/sigma)**np.arange(1,6)
-        integrand = np.zeros((5,self.n_basis,self.svals.size,self.rvals.size),dtype=float)
-        herm_exp_diff = np.zeros((5,self.svals.size,self.rvals.size),dtype=float)
+        """ Calculate Lambda_m^{(n)}(s|sigma) on s=self.svals for 1 <= n <= self.max_deriv. """
+        sig_inv_n = (-1/sigma)**np.arange(1,self.max_deriv+1)
+        integrand = np.zeros((self.max_deriv,self.n_basis,self.svals.size,self.rvals.size),dtype=float)
+        herm_exp_diff = np.zeros((self.max_deriv,self.svals.size,self.rvals.size),dtype=float)
 
         r_minus_s_by_sigma = (np.outer(np.ones_like(self.svals),self.rvals) - np.outer(self.svals,np.ones_like(self.rvals)))/sigma
         r_plus_s_by_sigma = (np.outer(np.ones_like(self.svals),self.rvals) + np.outer(self.svals,np.ones_like(self.rvals)))/sigma
         exp_minus = np.exp(-0.5*r_minus_s_by_sigma**2)
         exp_plus = np.exp(-0.5*r_plus_s_by_sigma**2)
 
-        for n in range(5):
+        for n in range(self.max_deriv):
             herm_exp_minus = sysp.eval_hermitenorm(n+1,-1.0*r_minus_s_by_sigma)*exp_minus # note -1*(r-s)=(s-r) as argument
             herm_exp_plus = sysp.eval_hermitenorm(n+1,r_plus_s_by_sigma)*exp_plus
             herm_exp_diff[n] = (herm_exp_minus - herm_exp_plus)*sig_inv_n[n]
             
         herm_exp_diff = herm_exp_diff*self.rvals
 
-        for n in range(5):
+        for n in range(self.max_deriv):
             for m in range(self.n_basis):
                 integrand[n,m] = herm_exp_diff[n]*self.bfunc[m]
             
@@ -363,22 +371,20 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     #########################################
 
     #########################################
-    # chkd
     def calc_der_lambda(self,sigma):
-        """ Calculate lambda_m^{(n)}(s|sigma) on s=self.svals for 1 <= n <= 5. 
-            Returns lambda_m^{(n)}(s|sigma) and Lambda_m^{(n)}(s|sigma), each array of shape (5,self.n_basis,self.svals.size)
+        """ Calculate lambda_m^{(n)}(s|sigma) on s=self.svals for 1 <= n <= self.max_deriv. 
+            Returns lambda_m^{(n)}(s|sigma) and Lambda_m^{(n)}(s|sigma), each array of shape (self.max_deriv,self.n_basis,self.svals.size)
         """
         Lambda_m_n = self.calc_der_Lambda(sigma) # (n,m,s) = (5,n_basis,svals.size)
         lambda_m_n = np.zeros_like(Lambda_m_n)   
         lambda_m_n[0] = (Lambda_m_n[0] - self.calc_lambda(sigma))/self.svals
-        for n in range(1,5):
+        for n in range(1,self.max_deriv):
             lambda_m_n[n] = (Lambda_m_n[n] - (n+1)*lambda_m_n[n-1])/self.svals
 
         return lambda_m_n,Lambda_m_n
     #########################################
     
     #########################################
-    # chkd
     def calc_lambda_bars(self,sigma):
         """ Calculate \bar lambda_m(s|sigma) [and \bar\bar lambda_m(s|sigma)] on s=self.svals. """
 
@@ -471,6 +477,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     def calc_xiNL(self,params_dict):
         """ Calculate propagator + mode-coupling terms of config space multipoles at self.svals.
             Returns array of shape (self.L_Max,self.svals.size)
+            If self.model_AP==True, then also returns dxiNL/dlns as second array of same shape (useful for AP calculations).
         """
         beta = params_dict['beta']
         sigv = params_dict['sigv']
@@ -489,9 +496,12 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         # storage for propagator and mode-coupling terms
         xi_prop = np.zeros((self.L_Max,self.svals.size),dtype=float)
         xi_MC = np.zeros((self.L_Max,self.svals.size),dtype=float)
+        if self.model_AP:
+            xi_prop_der = np.zeros((self.L_Max,self.svals.size),dtype=float)
+            xi_MC_der = np.zeros((self.L_Max,self.svals.size),dtype=float)
         
         lambda_m = self.calc_lambda(sigma) # (m,s)
-        if self.L_Max == 1:
+        if (self.L_Max == 1) & (not self.model_AP):
             Lambda_m_n = self.calc_der_Lambda(sigma) # (n,m,s)
         else:
             lambda_m_n,Lambda_m_n = self.calc_der_lambda(sigma) # (n,m,s)
@@ -508,8 +518,20 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         xi_temp -= psi_ellJ[0,1]*(Lambda_m_n[2] - Lambda_m_n[1]/self.svals)
         xi_temp += psi_ellJ[0,2]*(Lambda_m_n[4] - Lambda_m_n[3]/self.svals) 
         xi_MC[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
-        
 
+        if self.model_AP:
+            # prop
+            xi_temp = eta_ellJ[0,0]*(Lambda_m_n[0] - lambda_m) # (m,s)
+            xi_temp -= eta_ellJ[0,1]*(Lambda_m_n[2] - Lambda_m_n[1]/self.svals)
+            xi_temp += eta_ellJ[0,2]*(Lambda_m_n[4] - Lambda_m_n[3]/self.svals) 
+            xi_prop_der[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
+
+            # MC
+            xi_temp = psi_ellJ[0,0]*(Lambda_m_n[1] - lambda_m_n[0])*self.svals # (m,s)
+            xi_temp -= psi_ellJ[0,1]*(Lambda_m_n[3]*self.svals - Lambda_m_n[2] + Lambda_m_n[1]/self.svals)
+            xi_temp += psi_ellJ[0,2]*(Lambda_m_n[5]*self.svals - Lambda_m_n[4] + Lambda_m_n[3]/self.svals) 
+            xi_MC_der[0] = np.sum(xi_temp.T*w_m,axis=1) # (s,)
+            
         if self.L_Max > 1:
             qbar2 = params_dict['qbar2']
             lambda_m_bar,lambda_m_barbar = self.calc_lambda_bars(sigma)
@@ -527,7 +549,21 @@ class ZeldovichSmearingTheory(Theory,Utilities):
             xi_temp -= psi_ellJ[1,1]*(self.svals*lambda_m_n[2] - lambda_m_n[1] + lambda_m_n[0]/self.svals)
             xi_temp += psi_ellJ[1,2]*(self.svals*lambda_m_n[4] + lambda_m_n[3] - 7*lambda_m_n[2]/self.svals + 18*lambda_m_n[1]/s2 - 18*lambda_m_n[0]/s3) 
             xi_MC[1] = np.sum(xi_temp.T*w_m,axis=1) + 3*psi_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
-            
+
+            if self.model_AP:
+                # prop
+                xi_temp = eta_ellJ[1,0]*(3*(lambda_m_bar - lambda_m) + self.svals*lambda_m_n[0]) # (m,s)
+                xi_temp -= eta_ellJ[1,1]*(self.svals*lambda_m_n[2] - lambda_m_n[1] + lambda_m_n[0]/self.svals)
+                xi_temp += eta_ellJ[1,2]*(self.svals*lambda_m_n[4] + lambda_m_n[3] - 7*lambda_m_n[2]/self.svals + 18*lambda_m_n[1]/s2 - 18*lambda_m_n[0]/s3) 
+                xi_prop_der[1] = np.sum(xi_temp.T*w_m,axis=1) + 3*eta_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
+
+                # MC
+                xi_temp = psi_ellJ[1,0]*(9*(lambda_m - lambda_m_bar) - 2*self.svals*lambda_m_n[0] + self.svals**2*lambda_m_n[1]) # (m,s)
+                xi_temp -= psi_ellJ[1,1]*(self.svals**2*lambda_m_n[3] + lambda_m_n[1] - lambda_m_n[0]/self.svals)
+                xi_temp += psi_ellJ[1,2]*(self.svals**2*lambda_m_n[5] + 2*self.svals*lambda_m_n[4] - 7*lambda_m_n[3]
+                                          + 25*lambda_m_n[2]/self.svals - 36*lambda_m_n[1]/s3 - 18*lambda_m_n[1]/s2 + 53*lambda_m_n[0]/s3/self.svals) 
+                xi_MC_der[1] = np.sum(xi_temp.T*w_m,axis=1) - 9*psi_ellJ[1,0]*qbar2*self.sminBys3 # (s,)
+                
             if self.L_Max == 3:
                 qbar4 = params_dict['qbar4']
 
@@ -547,10 +583,40 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                 qbar_contrib += self.sminBys5*(35*psi_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*psi_ellJ[2,0]*qbar4)
                 qbar_contrib *= 5.0
                 xi_MC[2] = np.sum(xi_temp.T*w_m,axis=1) - qbar_contrib # (s,)
-                
+
+                if self.model_AP:
+                    # prop
+                    xi_temp = eta_ellJ[2,0]*(self.svals*lambda_m_n[0] - 10*lambda_m - 7.5*lambda_m_bar + 17.5*lambda_m_barbar) # (m,s)
+                    xi_temp -= eta_ellJ[2,1]*(self.svals*lambda_m_n[2] - 8*lambda_m_n[1] + 43*lambda_m_n[0]/self.svals - 175*(lambda_m - lambda_m_bar)/s2)
+                    xi_temp += eta_ellJ[2,2]*(self.svals*lambda_m_n[4] - 6*lambda_m_n[3] + 21*lambda_m_n[2]/self.svals - 45*lambda_m_n[1]/s2 + 45*lambda_m_n[0]/s3)
+                    qbar_contrib = 1.5*eta_ellJ[2,0]*qbar2*self.sminBys3
+                    qbar_contrib += self.sminBys5*(35*eta_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*eta_ellJ[2,0]*qbar4)
+                    qbar_contrib *= 5.0
+                    xi_prop_der[2] = np.sum(xi_temp.T*w_m,axis=1) - qbar_contrib # (s,)
+
+                    # MC
+                    xi_temp = psi_ellJ[2,0]*(self.svals**2*lambda_m_n[1] - 9*self.svals*lambda_m_n[0]
+                                             + 65*lambda_m + 22.5*lambda_m_bar - 87.5*lambda_m_barbar) # (m,s)
+                    xi_temp -= psi_ellJ[2,1]*(self.svals**2*lambda_m_n[3] -7*self.svals*lambda_m_n[2]
+                                              + 43*lambda_m_n[1] - 218*lambda_m_n[0]/self.svals
+                                              + 875*(lambda_m - lambda_m_bar)/s2)
+                    xi_temp += psi_ellJ[2,2]*(self.svals**2*lambda_m_n[5] - 5*self.svals*lambda_m_n[4]
+                                              + 21*lambda_m_n[3] - 66*lambda_m_n[2]/self.svals + 135*lambda_m_n[1]/s2 - 135*lambda_m_n[0]/s3)
+                    qbar_contrib = -4.5*psi_ellJ[2,0]*qbar2*self.sminBys3
+                    qbar_contrib -= 5*self.sminBys5*(35*psi_ellJ[2,1]*qbar2/self.svals.min()**2 - 3.5*psi_ellJ[2,0]*qbar4)
+                    qbar_contrib *= 5.0
+                    xi_MC_der[2] = np.sum(xi_temp.T*w_m,axis=1) - qbar_contrib # (s,)
+                    
         xi_MC *= AMC
-                
-        return xi_prop + xi_MC
+        if self.model_AP:
+            xi_MC_der *= AMC
+
+        xiNL = xi_prop + xi_MC
+        if self.model_AP:
+            return xiNL,xi_prop_der + xi_MC_der
+        else:
+            return xiNL
+
     #########################################
 
     ############################################################
@@ -654,8 +720,17 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         if out_of_bounds:
             state['model'] = np.inf*np.ones(self.dim)
             return
-        
-        xiNL = self.calc_xiNL(params_dict) # (L_Max,s)
+
+        if self.model_AP:
+            xiNL,xiNL_der = self.calc_xiNL(params_dict) # (L_Max,s)
+            Daiso = params_dict['Daiso']
+            DaAP = params_dict['DaAP']
+            temp = (2/3.)*np.dot(self.Cmat,xiNL_der) # (L_Max,s)
+            temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
+            temp += np.dot(self.Amat,xiNL)
+            xiNL = xiNL - Daiso*xiNL_der + DaAP*temp
+        else:
+            xiNL = self.calc_xiNL(params_dict) # (L_Max,s)
 
         if self.modify_data & (self.L_Max > 1):
             xiNL[1] -= self.sminBys3*xiNL[1,0]
@@ -671,7 +746,12 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                 xiNL = np.delete(xiNL,[self.offset+self.N_Data])
 
         if self.include_Sig2obs:
-            Sig2obs = self.calc_Sig2obs(params_dict)
+            Sig2obs = self.calc_Sig2obs(params_dict) # (L_Max,)
+            if self.model_AP:
+                temp = (4/3.)*np.dot(self.Cmat,Sig2obs)
+                temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
+                temp = np.dot(self.Amat,Sig2obs) - temp
+                Sig2obs = Sig2obs*(1+2*Daiso) + DaAP*temp
             xiNL = np.concatenate((Sig2obs,xiNL))
         
         state['model'] = xiNL.copy()

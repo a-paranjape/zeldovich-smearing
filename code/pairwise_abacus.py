@@ -167,13 +167,12 @@ if __name__ == "__main__":
     print('... retaining halos with M >= {0:.2e} Msun/h'.format(M_min))
     print('... downsampling by factor {0:d}'.format(Down_To))
 
-    Aniso = False
+    Aniso = True
     LOS = 2
     L_Max = 3
 
     # Abacus baseline c000 cosmology
-    co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Neff=3.04,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255)
-    # co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Tcmb0=2.7255)
+    co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Neff=3.044,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255)
     print('... abacus cosmo c000:',co_c000)
     # ... distances
     d_Hub = (SPEED_OF_LIGHT/co_c000.H(Redshift))
@@ -205,10 +204,16 @@ if __name__ == "__main__":
     DaAP = alpha_AP - 1.0
     Daiso = alpha_iso - 1.0
 
+    DV     = (Redshift*d_Hub.value*d_Ang_com.value**2)**(1/3.)*h_fid         # Mpc/h_fid
+    DV_fid = (Redshift*d_Hub_fid.value*d_Ang_com_fid.value**2)**(1/3.)*h_fid # Mpc/h_fid
+    
     print('... alpha_par : 1 + {0:.3e}'.format(alpha_par-1))
     print('... alpha_perp: 1 + {0:.3e}'.format(alpha_perp-1))
     print('...  DaAP: {0:+.3e}'.format(DaAP))
     print('... Daiso: {0:+.3e}'.format(Daiso))
+
+    print('...     DV: {0:.4f} Mpc/h_fid'.format(DV))
+    print('... DV_fid: {0:.4f} Mpc/h_fid'.format(DV_fid))
     
     Abacus_Stem = Abacus_Path + 'AbacusSummit_base_c000_ph'
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid

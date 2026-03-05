@@ -728,7 +728,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
             temp = (2/3.)*np.dot(self.Cmat,xiNL_der) # (L_Max,s)
             temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
             temp += np.dot(self.Amat,xiNL)
-            xiNL = xiNL - Daiso*xiNL_der + DaAP*temp
+            xiNL = xiNL + DaAP*temp # - Daiso*xiNL_der # uncomment to model AP as func of s rather than y = s/DV
         else:
             xiNL = self.calc_xiNL(params_dict) # (L_Max,s)
 

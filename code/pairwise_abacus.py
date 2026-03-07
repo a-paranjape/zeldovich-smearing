@@ -237,18 +237,18 @@ if __name__ == "__main__":
         
     rng = np.random.RandomState(42)
 
-    # if Do_2pcf:
-    task_tuple = (tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk)
-    tasks = [task_tuple]*N_Phase
-    # tasks = []
-    # for phase in range(N_Phase):
-    #     tasks.append(task_tuple)
-    pw_dict = ml.run_processes(tasks,queuer_box,NProc)
+    if Do_2pcf:
+        task_tuple = (tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk)
+        tasks = [task_tuple]*N_Phase
+        # tasks = []
+        # for phase in range(N_Phase):
+        #     tasks.append(task_tuple)
+        pw_dict = ml.run_processes(tasks,queuer_box,NProc)
 
-    # if Do_Pk:
-    #     pw_dict = {}
-    #     for phase in range(N_Phase):
-    #         queuer_box(phase,tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,pw_dict)
+    if Do_Pk:
+        pw_dict = {}
+        for phase in range(N_Phase):
+            queuer_box(phase,tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,pw_dict)
 
     if Do_2pcf:
         file_stem_2pcf = 'xi'

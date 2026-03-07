@@ -145,15 +145,15 @@ if __name__ == "__main__":
     
     ml = MLUtilities()
 
-    Do_2pcf = False
-    Do_Pk = True
-    N_Phase = 3   # number of boxes to analyse
+    Do_2pcf = True
+    Do_Pk = False
+    N_Phase = 25  # number of boxes to analyse
     Ref_Phase = 0 # index of box to use as data
     
     Down_To = 1   # default 1
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
-    NProc = np.min([N_Phase,6]) if Do_2pcf else 1
+    NProc = np.min([N_Phase,12]) if Do_2pcf else 1 # 2pcf: 8 for real, 12 for aniso    
     
     Redshift = 0.8 # 0.8
     print('... working at redshift z = {0:.3f}'.format(Redshift))

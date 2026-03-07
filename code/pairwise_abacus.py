@@ -153,7 +153,7 @@ if __name__ == "__main__":
     Down_To = 1   # default 1
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
-    NProc = np.min([N_Phase,6])
+    NProc = np.min([N_Phase,6]) if Do_2pcf else 1
     
     Redshift = 0.8 # 0.8
     print('... working at redshift z = {0:.3f}'.format(Redshift))

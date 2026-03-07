@@ -349,6 +349,7 @@ if __name__ == "__main__":
             err_Pk /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
         else:
             Pk = Pk_phases[Ref_Phase].copy()
+            err_Pk *= np.sqrt(N_Phase/(N_Phase-1 + 1e-15))
 
         if Aniso:
             err_Sig2obs = np.std(Sig2obs_phases,axis=0)

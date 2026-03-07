@@ -275,6 +275,7 @@ if __name__ == "__main__":
             err_xi /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
         else:
             xi = xi_phases[Ref_Phase].copy()
+            err_xi *= np.sqrt(N_Phase/(N_Phase-1 + 1e-15))
 
         print('Writing to file: ',scales_file)
         np.savetxt(scales_file,tpcf.smid,fmt='%.8e')

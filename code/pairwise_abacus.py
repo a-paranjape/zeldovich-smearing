@@ -152,7 +152,7 @@ if __name__ == "__main__":
     Do_Pk = True
 
     # number of boxes to analyse
-    N_Phase = 1#25
+    N_Phase = 2#25
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 

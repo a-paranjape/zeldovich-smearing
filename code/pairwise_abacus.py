@@ -136,7 +136,7 @@ if __name__ == "__main__":
     ##################################
     # -- if this ends with '-xN' then stats will be averaged over N phases starting with ph000.
     # -- if not, then only one phase will be used, specified by Ref_Phase below.
-    Sample = 'DESI-LRG2' 
+    Sample = 'Euclid-ELG' # 'DESI-LRG2','Euclid-ELG' 
 
     print('AbacusSummit pairwise correlations for sample:',Sample)
     
@@ -145,31 +145,38 @@ if __name__ == "__main__":
     
     ml = MLUtilities()
 
-    Do_2pcf = True
-    Do_Pk = False
-    N_Phase = 25  # number of boxes to analyse
-    Ref_Phase = 0 # index of box to use as data
+    config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0},
+                   'Euclid-ELG':{'redshift':0.95,'Mmin':2e12,'phase':1}}
     
-    Down_To = 1   # default 1
-    Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
-    Max_File = 64 # default 64
-    NProc = np.min([N_Phase,12]) if Do_2pcf else 1 # 2pcf: 8 for real, 12 for aniso    
-    
-    Redshift = 0.8 # 0.8
-    print('... working at redshift z = {0:.3f}'.format(Redshift))
+    Do_2pcf = False
+    Do_Pk = True
 
-    Mmin_dict = {'DESI-LRG2':8e12,
-                 # below are existing tests with 3x DESI volume
-                 'DESI-LRG2-AP-x3':8e12 if Redshift > 0.5 else 1.25e13,
-                 'DESI-LRG2-noAP-x3':8e12 if Redshift > 0.5 else 1.25e13}
-    
-    M_min = Mmin_dict[Sample]
-    print('... retaining halos with M >= {0:.2e} Msun/h'.format(M_min))
-    print('... downsampling by factor {0:d}'.format(Down_To))
+    # number of boxes to analyse
+    N_Phase = 1#25
 
-    Aniso = True
+    # index of box to use as data
+    Ref_Phase = config_dict[Sample]['phase'] 
+    
+    Aniso = False
     LOS = 2
     L_Max = 3
+    
+    Down_To = 100   # default 1
+    Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
+    Max_File = 64 # default 64
+    NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
+    
+    Redshift = config_dict[Sample]['redshift']  # 0.8
+    print('... working at redshift z = {0:.3f}'.format(Redshift))
+
+    # Mmin_dict = {'DESI-LRG2':8e12,'Euclid-ELG':2e12,
+    #              # below are existing tests with 3x DESI volume
+    #              'DESI-LRG2-AP-x3':8e12 if Redshift > 0.5 else 1.25e13,
+    #              'DESI-LRG2-noAP-x3':8e12 if Redshift > 0.5 else 1.25e13}
+    
+    M_min = config_dict[Sample]['Mmin'] # Mmin_dict[Sample]
+    print('... retaining halos with M >= {0:.2e} Msun/h'.format(M_min))
+    print('... downsampling by factor {0:d}'.format(Down_To))
 
     # Abacus baseline c000 cosmology
     co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Neff=3.044,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255)
@@ -214,7 +221,7 @@ if __name__ == "__main__":
 
     print('...     DV: {0:.4f} Mpc/h_fid'.format(DV))
     print('... DV_fid: {0:.4f} Mpc/h_fid'.format(DV_fid))
-    
+
     Abacus_Stem = Abacus_Path + 'AbacusSummit_base_c000_ph'
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
     

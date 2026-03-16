@@ -152,7 +152,7 @@ if __name__ == "__main__":
     Do_Pk = True
 
     # number of boxes to analyse
-    N_Phase = 2#25
+    N_Phase = 25
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     L_Max = 3
     
     Down_To = 100   # default 1
-    Grid = 64 #256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
+    Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
     NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
     

@@ -29,7 +29,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data = hdu[1].data
     data_size_orig = data['Mabacus'].size
     data = data[data['Mabacus'] >= M_min]
-    ut.status_bar(0,max_file)
+    # ut.status_bar(0,max_file)
     for i in range(1,max_file):
         # data_i = fitsio.read(data_dir+'sub_{0:d}_nsub_4.fits'.format(i))
         with fits.open(data_dir+'sub_{0:d}_nsub_4.fits'.format(i)) as hdu_i:
@@ -38,7 +38,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data_i = data_i[data_i['Mabacus'] >= M_min]
         data = np.concatenate((data,data_i))
         data_i = None
-        ut.status_bar(i,max_file)
+        # ut.status_bar(i,max_file)
     ut.time_this(start_time)
     print('... ... kept {0:d} of {1:d} objects'.format(data['Mabacus'].size,data_size_orig))
     
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     LOS = 2
     L_Max = 3
     
-    Down_To = 30   # default 1
+    Down_To = 1   # default 1
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
     NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 

@@ -158,11 +158,11 @@ if __name__ == "__main__":
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
     
-    Aniso = False
+    Aniso = True
     LOS = 2
     L_Max = 3
     
-    Down_To = 1   # default 1
+    Down_To = 1000   # default 1
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
     NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 

@@ -6,7 +6,6 @@ from astropy.cosmology import FlatLambdaCDM
 import astropy.units as u
 SPEED_OF_LIGHT = 3e5*u.km/u.s
 
-
 from paths import *
 
 sys.path.append(Sahyadri_Path)
@@ -148,18 +147,18 @@ if __name__ == "__main__":
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':1}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9}}
     
-    Do_2pcf = True
-    Do_Pk = False
+    Do_2pcf = False
+    Do_Pk = True
 
-    # number of boxes to analyse
+    # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 25
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
     
-    Aniso = False
+    Aniso = True
     LOS = 2
     L_Max = 3
     

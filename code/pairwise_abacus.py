@@ -149,8 +149,8 @@ if __name__ == "__main__":
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0},
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9}}
     
-    Do_2pcf = False
-    Do_Pk = True
+    Do_2pcf = True
+    Do_Pk = False
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 25

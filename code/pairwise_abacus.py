@@ -24,6 +24,7 @@ ut = Utilities()
 def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,kmin,kmax,h_fid,max_file,ddstem,down_to,rng,do_2pcf,do_Pk,mdict):
     data_dir = ddstem + '{0:03d}/z{1:.3f}/'.format(phase,redshift)
     print(data_dir+'\n')
+    start_time = time()
     # data = fitsio.read(data_dir+'sub_0_nsub_4.fits')
     with fits.open(data_dir+'sub_0_nsub_4.fits') as hdu:
         data = hdu[1].data
@@ -39,6 +40,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data = np.concatenate((data,data_i))
         data_i = None
         ut.status_bar(i,max_file)
+    ut.time_this(start_time)
     print('... ... kept {0:d} of {1:d} objects'.format(data['Mabacus'].size,data_size_orig))
     
     data_size = data['Mabacus'].size

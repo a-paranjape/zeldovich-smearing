@@ -154,13 +154,13 @@ if __name__ == "__main__":
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9,'downto':1}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':10000}}
     
-    Do_2pcf = False
-    Do_Pk = True
+    Do_2pcf = True
+    Do_Pk = False
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
-    N_Phase = 25
+    N_Phase = 1
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 

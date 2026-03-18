@@ -147,13 +147,13 @@ if __name__ == "__main__":
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9,'downto':3}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':3}}
     
     Do_2pcf = True
     Do_Pk = False
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
-    N_Phase = 25
+    N_Phase = 1
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
-    NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
+    NProc = np.min([N_Phase,1 if Aniso else 8]) if Do_2pcf else 1 
     
     Redshift = config_dict[Sample]['redshift']  # 0.8
     print('... working at redshift z = {0:.3f}'.format(Redshift))

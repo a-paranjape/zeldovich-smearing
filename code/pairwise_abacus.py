@@ -72,7 +72,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
 
         # from prop vel to comov separation
         vel_to_cMpch = (1+redshift)/(100*E_z) # same as BoxSizeHMpc/VelZSpace_to_kms as suggested on website
-        zred = data['v_L2com'][ind,los]*vel_to_cMpch
+        zred = data['v_L2com'][ind,los]*vel_to_cMpch if down_to > 1 else data['v_L2com'][:,los]*vel_to_cMpch
 
         # add real-space separation
         zred += data_use[:,los]
@@ -154,8 +154,8 @@ if __name__ == "__main__":
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':1}}
     
-    Do_2pcf = True
-    Do_Pk = False
+    Do_2pcf = False
+    Do_Pk = True
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 1

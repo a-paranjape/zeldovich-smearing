@@ -154,7 +154,7 @@ if __name__ == "__main__":
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':100}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':10}}
     
     Do_2pcf = True
     Do_Pk = False

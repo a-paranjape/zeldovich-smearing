@@ -154,8 +154,8 @@ if __name__ == "__main__":
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':1}}
     
-    Do_2pcf = False
-    Do_Pk = True
+    Do_2pcf = True
+    Do_Pk = False
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 1
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
     
-    Aniso = True
+    Aniso = False
     LOS = 2
     L_Max = 3
     
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
-    NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
+    NProc = 1 #np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
     
     Redshift = config_dict[Sample]['redshift']  # 0.8
     print('... working at redshift z = {0:.3f}'.format(Redshift))

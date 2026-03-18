@@ -43,8 +43,13 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
     print('... ... kept {0:d} of {1:d} objects'.format(data['Mabacus'].size,data_size_orig))
     
     data_size = data['Mabacus'].size
-    ind = rng.choice(np.arange(data_size),size=data_size//down_to,replace=False) if down_to > 1 else np.arange(data_size)
-    data_use = data['x_L2com'][ind]
+    if down_to > 1:
+        ind = rng.choice(np.arange(data_size),size=data_size//down_to,replace=False) 
+        data_use = data['x_L2com'][ind]
+    else:
+        data_use = data['x_L2com']
+    # ind = rng.choice(np.arange(data_size),size=data_size//down_to,replace=False) if down_to > 1 else np.arange(data_size)
+    # data_use = data['x_L2com'][ind]
 
     E_z = 0.0
     h = 0.0
@@ -147,7 +152,7 @@ if __name__ == "__main__":
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':3}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':1}}
     
     Do_2pcf = True
     Do_Pk = False
@@ -166,7 +171,7 @@ if __name__ == "__main__":
     
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
-    NProc = np.min([N_Phase,1 if Aniso else 8]) if Do_2pcf else 1 
+    NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
     
     Redshift = config_dict[Sample]['redshift']  # 0.8
     print('... working at redshift z = {0:.3f}'.format(Redshift))

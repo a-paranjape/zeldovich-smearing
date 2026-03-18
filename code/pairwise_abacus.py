@@ -162,7 +162,7 @@ if __name__ == "__main__":
     LOS = 2
     L_Max = 3
     
-    Down_To = 3   # default 1
+    Down_To = 5   # default 1
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
     NProc = np.min([N_Phase,12 if Aniso else 8]) if Do_2pcf else 1 
@@ -230,6 +230,8 @@ if __name__ == "__main__":
     if Do_2pcf:
         tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS)
         tpcf.verbose = False
+        if Sample == 'Euclid-ELG':
+            tpcf.N_SPLIT = 300000
     else:
         tpcf = None
 

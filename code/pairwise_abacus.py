@@ -154,7 +154,7 @@ if __name__ == "__main__":
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':1}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':10000}}
     
     Do_2pcf = True
     Do_Pk = False
@@ -238,8 +238,8 @@ if __name__ == "__main__":
     if Do_2pcf:
         tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS)
         tpcf.verbose = False
-        if Sample == 'Euclid-ELG':
-            tpcf.N_SPLIT = 300000
+        # if Sample == 'Euclid-ELG':
+        #     tpcf.N_SPLIT = 300000
     else:
         tpcf = None
 

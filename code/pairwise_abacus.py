@@ -90,7 +90,9 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         
         del zred
         
-    del ind,data
+    del data
+    if down_to > 1:
+        del ind
     gc.collect()
 
     data_use *= (h_fid/h) # convert to Mpc/h_fid [ONLY place that this is needed in this routine]
@@ -154,8 +156,8 @@ if __name__ == "__main__":
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':0,'downto':1}}
     
-    Do_2pcf = True
-    Do_Pk = False
+    Do_2pcf = False
+    Do_Pk = True
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 1

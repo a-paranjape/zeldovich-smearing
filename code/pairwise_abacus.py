@@ -165,7 +165,7 @@ if __name__ == "__main__":
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
     
-    Aniso = False
+    Aniso = True
     LOS = 2
     L_Max = 3
     

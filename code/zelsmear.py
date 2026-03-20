@@ -243,7 +243,6 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         with open(self.basis_stem + '.pkl', 'rb') as f:
             params_setup = pickle.load(f)
         params_setup['file_stem'] = self.basis_stem
-        params_setup['verbose'] = False
         # initialize class
         self.binet = BiSequential(params=params_setup)
         # load network parameters from files

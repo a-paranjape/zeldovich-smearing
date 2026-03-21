@@ -466,7 +466,7 @@ class TheoryManipulator(Utilities):
             Returns model prediction
         """
         ev_dict = copy.deepcopy(ev_ref)
-        variation = direction*amount
+        variation = np.sign(direction)*amount
         if relative:
             variation *= np.fabs(ev_ref[param])
         ev_dict[param] += variation

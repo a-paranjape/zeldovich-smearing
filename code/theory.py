@@ -257,7 +257,18 @@ class TheoryManipulator(Utilities):
             else:
                 value = self.fiducial[key][self.sample]
             self.eval_dict_fid[key] = value
-            
+
+        self.best_fit = {'params':['beta', 'sigv', 
+                                   'w_0', 'w_1', 'w_2', 'w_3', 'w_4', 'w_5', 'w_6', 'w_7', 'w_8', 
+                                   'b', 'B1st', 'Bvst', 'sigma', 'AMC', 
+                                   'qbar2', 
+                                   'fv', 'Daiso', 'DaAP'],
+                         'DESI-LRG2':[3.3866e-01,4.0746e+00,
+                                      1.4302e-02,-5.2372e-03,-1.0899e-02,1.9982e-02,-4.7548e-03,1.8302e-02,-3.7938e-02,8.3095e-03,1.6701e-02,
+                                      2.4575e+00,-1.2290e+00,8.7601e+00,7.3617e+00,2.4058e-02,
+                                      5.6368e-02,
+                                      2.2611e-01,-1.6575e-02,1.8403e-03],
+                         'Euclid-ELG':None}            
         
         return        
     ####################################################
@@ -440,5 +451,28 @@ class TheoryManipulator(Utilities):
         z = linalg.cho_solve((self.like.L,True),residual) # solves (L L^T) z = residual or z = C^-1 residual
         chi2 = np.dot(residual,z)
         return chi2
+    ####################################################
+    
+
+    ####################################################
+    def vary_prediction(self,ev_ref,param,direction,amount,relative=True,wrap=True):
+        """ Convenience function to produce model prediction for specified variation of particular parameter around reference model.
+            -- ev_ref: dictionary of param values for reference model
+            -- param: str, name of parameter to vary
+            -- direction: float/int (only sign matters), direction of variation: upwards (downward) for +ve (-ve)
+            -- amount: positive float, amount of variation
+            -- relative: bool (default True), if True, treat amount as relative variation, else absolute
+            -- wrap: bool, fed to self.calc_model
+            Returns model prediction
+        """
+        ev_dict = copy.deepcopy(ev_ref)
+        variation = direction*amount
+        if relative:
+            variation *= np.fabs(ev_ref[param])
+        ev_dict[param] += variation
+
+        prediction = self.calc_model(ev_dict,wrap=wrap)
+
+        return prediction
     ####################################################
     

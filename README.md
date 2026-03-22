@@ -1,14 +1,14 @@
 # Model-agnostic inference using the BAO feature
 
-A model-agnostic description of the baryon acoustic oscillation (BAO) BAO feature in redshift space requires a number of ingredients. Physically, one must describe the impact of cosmological bulk flows which progressively and anisotropically smear out the feature over time. One must also model the effects of the scale dependence of tracer bias and the mode coupling between short and long scales. All of these can be incorporated using the Zel'dovich approximation alone, without reference to any particular cosmological model. On the technical front, one needs a robust, complete and cosmology-independent basis to describe the shape of the real space BAO feature in linear theory, which can then be propagated to the nonlinearly evolved, measured feature in redshift space. Finally, one must account for a possibly incorrect conversion of observed angular and redshift separations to comoving lengths.
+A model-agnostic description of the baryon acoustic oscillation (BAO) feature in redshift space requires a number of ingredients. Physically, one must describe the impact of cosmological bulk flows which progressively and anisotropically smear out the feature over time. One must also model the effects of the scale dependence of tracer bias and the mode coupling between short and long scales. All of these can be incorporated using the Zel'dovich approximation alone, without reference to any particular cosmological model. On the technical front, one needs a robust, complete and cosmology-independent basis to describe the shape of the real space BAO feature in linear theory, which can then be propagated to the nonlinearly evolved, measured feature in redshift space. Finally, as in a traditional analysis, one must account for a possibly incorrect conversion of observed angular and redshift separations to comoving lengths.
 
-These ingredients have been constructed in a series of recent papers. 
+These ingredients have been developed by us in a series of recent papers. 
 
 This repository provides an implementation of the final **Zel'dovich smearing** model that brings these pieces together, as described by [Paranjape & Sheth (2026a)](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) (PS26a below) and [Paranjape & Sheth (2026b)](??) (PS26b below). 
 
 Additionally, we provide measurements of the relevant pairwise correlations and their expected covariance for the following tracer samples: 
 * A toy sample mimicking DESI LRGs as described by [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract).
-* Two $N$-body halo samples drawn from the [publicly available](https://abacussummit.readthedocs.io/en/latest/abacussummit.html) $\textsf{AbacusSummit}$ suite as described by [PS26b](??):
+* Two $N$-body halo samples drawn from the [publicly available](https://abacussummit.readthedocs.io/en/latest/abacussummit.html) $\textsf{AbacusSummit}$ suite's baseline `c000` cosmology as described by [PS26b](??):
   * $\textsf{DESI-LRG2}$ ($z=0.8$) mimicking luminous red galaxies (LRGs) being observed by the [DESI](https://ui.adsabs.harvard.edu/abs/2016arXiv161100036D/abstract) survey, 
   * $\textsf{Euclid-ELG}$ ($z=1.1$) mimicking H $\alpha$ emission line galaxies (ELGs) being observed by the [*Euclid*](https://ui.adsabs.harvard.edu/abs/2025A%26A...697A...1E/abstract) mission.
 
@@ -57,9 +57,14 @@ The following steps should be sufficient for using the functionality of this rep
 
 ## Code organization
 * `zelsmear.py`: This is the main script containing definitions of the theory class `ZeldovichSmearingTheory` and likelihood class `ZeldovichSmearingLike`:
-  * `ZeldovichSmearingLike`: Provides infrastructure to read and manipulate a data vector and covariance matrix from specified locations, so as to calculate a Gaussian (log-)likelihood. Assumes that the theory class will provide a compatible model prediction vector.
-  * `ZeldovichSmearingTheory`: Provides all necessary ingredients to compute a model prediction using a parameter dictionary, so as to be compatible with the data vector used by the `ZeldovichSmearingLike`. In addition to the top-level `calculate` method required by $\texttt{Cobaya}$'s samplers such as `mcmc`, this class includes several auxiliary methods to compute various interesting quantities such as[^1]
-    * total prediction for multipoles of the observed 2-point correlation function (2pcf) $\xi^{(\ell)}\_{\rm obs}(s)$ (`calc_xiNL`) and power spectrum multipole integrals $\Sigma^{(\ell)2}_{\rm obs}$ (`calc_Sig2obs`) for use in MCMC,
+  * `ZeldovichSmearingLike`: Provides infrastructure to read and manipulate a data vector and covariance matrix from specified locations, so as to calculate a Gaussian (log-)likelihood. Assumes that the theory class will provide a compatible model prediction vector. The data sets contained in the repository include the following measurements[^1] for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
+    * Redshift space multipoles $\ell=0,2,4$ of the tracer 2-point correlation function (2pcf) $\xi^{(\ell)}\_{\rm obs}(s)$.
+    * Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$.
+    * Integrals of the power spectrum multipoles over low-$k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.
+    * Gauss-Poisson estimates of the joint covariance matrix of $\xi^{(\ell)}\_{\rm obs}(s)$ and $\Sigma^{(\ell)2}_{\rm obs}$. For the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples, these are scaled to match diagonal errors on each quantity as estimated using 25 realisations of the $\textsf{AbacusSummit}$ baseline `c000` boxes.
+    * Real space 2pcf and power spectrum estimates (for reference only).
+  * `ZeldovichSmearingTheory`: Provides all necessary ingredients to compute a model prediction using a parameter dictionary, so as to be compatible with the data vector used by the `ZeldovichSmearingLike`. In addition to the top-level `calculate` method required by $\texttt{Cobaya}$'s samplers such as `mcmc`, this class includes several auxiliary methods to compute various interesting quantities such as
+    * total prediction for multipoles of the observed 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$ (`calc_xiNL`) and power spectrum multipole integrals $\Sigma^{(\ell)2}_{\rm obs}$ (`calc_Sig2obs`) for use in MCMC,
     * individual contributions of the 'propagator' (`calc_xiprop`) and 'mode-coupling' pieces (`calc_xiMC`) in 2pcf multipoles,
     * protohalo 2pcf prediction (`calc_xiprotohalo`),
     * raw basis functions $b_m(r)$ (`calc_basis`) and their first derivatives (`calc_dbdr`),
@@ -70,7 +75,7 @@ The following steps should be sufficient for using the functionality of this rep
 * `pairwise_abacus.py`: \[DESCRIPTION PENDING\]
 * `paths.py`: This is an auxiliary file edited during installation and containing paths to various dependencies.
 
-[^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) for the original definitions of the quantities listed here.
+[^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
 
 ## Examples
 In the folder `examples/` we provide a number of Jupyter notebooks.

@@ -57,14 +57,9 @@ The following steps should be sufficient for using the functionality of this rep
 
 ## Code organization
 * `zelsmear.py`: This is the main script containing definitions of the theory class `ZeldovichSmearingTheory` and likelihood class `ZeldovichSmearingLike`:
-  * `ZeldovichSmearingLike`: Provides infrastructure to read and manipulate a data vector and covariance matrix from specified locations, so as to calculate a Gaussian (log-)likelihood. Assumes that the theory class will provide a compatible model prediction vector. The data sets contained in the repository include the following measurements[^1] for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
-    * Redshift space multipoles $\ell=0,2,4$ of the tracer 2-point correlation function (2pcf) $\xi^{(\ell)}\_{\rm obs}(s)$.
-    * Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$.
-    * Integrals of the power spectrum multipoles over low-$k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.
-    * Gauss-Poisson estimates of the joint covariance matrix of $\xi^{(\ell)}\_{\rm obs}(s)$ and $\Sigma^{(\ell)2}_{\rm obs}$. For the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples, these are scaled to match diagonal errors on each quantity as estimated using 25 realisations of the $\textsf{AbacusSummit}$ baseline `c000` boxes.
-    * Real space 2pcf and power spectrum estimates (for reference only).
-  * `ZeldovichSmearingTheory`: Provides all necessary ingredients to compute a model prediction using a parameter dictionary, so as to be compatible with the data vector used by the `ZeldovichSmearingLike`. In addition to the top-level `calculate` method required by $\texttt{Cobaya}$'s samplers such as `mcmc`, this class includes several auxiliary methods to compute various interesting quantities such as
-    * total prediction for multipoles of the observed 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$ (`calc_xiNL`) and power spectrum multipole integrals $\Sigma^{(\ell)2}_{\rm obs}$ (`calc_Sig2obs`) for use in MCMC,
+  * `ZeldovichSmearingLike`: Provides infrastructure to read and manipulate a data vector and covariance matrix from specified locations, so as to calculate a Gaussian (log-)likelihood. Assumes that the theory class will provide a compatible model prediction vector. 
+  * `ZeldovichSmearingTheory`: Provides all necessary ingredients to compute a model prediction using a parameter dictionary, so as to be compatible with the data vector used by the `ZeldovichSmearingLike`. In addition to the top-level `calculate` method required by $\texttt{Cobaya}$'s samplers such as `mcmc`, this class includes several auxiliary methods to compute various interesting quantities[^1] such as
+    * total prediction for multipoles of the observed tracer 2-point correlation function (2pcf) $\xi^{(\ell)}\_{\rm obs}(s)$ (`calc_xiNL`) and low $k$ power spectrum multipole integrals $\Sigma^{(\ell)2}_{\rm obs}$ (`calc_Sig2obs`) for use in MCMC,
     * individual contributions of the 'propagator' (`calc_xiprop`) and 'mode-coupling' pieces (`calc_xiMC`) in 2pcf multipoles,
     * protohalo 2pcf prediction (`calc_xiprotohalo`),
     * raw basis functions $b_m(r)$ (`calc_basis`) and their first derivatives (`calc_dbdr`),
@@ -77,6 +72,18 @@ The following steps should be sufficient for using the functionality of this rep
 
 [^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
 
+## Data organization
+We provide several useful data sets in the folder `examples/data/`.
+
+The data sets contained in the repository include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
+* Redshift space multipoles $\ell=0,2,4$ of the tracer 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$.
+* Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$.
+* Integrals of the power spectrum multipoles over low $k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.
+* Gauss-Poisson estimates of the joint covariance matrix of $\xi^{(\ell)}\_{\rm obs}(s)$ and $\Sigma^{(\ell)2}_{\rm obs}$. For the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples, these are scaled to match diagonal errors on each quantity as estimated using 25 realizations of the $\textsf{AbacusSummit}$ baseline `c000` boxes.
+* Real space 2pcf and power spectrum estimates for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples (for reference only).
+    
+For each measured quantity, the data set includes separate measurements from each realization (or 'phase') of the 25 available, along with plot-friendly files reporting the measurements and diagonal errors for the reference phase for each sample. The reference phases are `ph000` for $\textsf{DESI-LRG2}$ and `ph009` for $\textsf{Euclid-ELG}$. MCMC-friendly data files for the reference samples are also provided for use with `ZeldovichSmearingLike`.
+
 ## Examples
 In the folder `examples/` we provide a number of Jupyter notebooks.
 * `ZelSmear_Explore_Theory.ipynb`: 
@@ -85,7 +92,26 @@ In the folder `examples/` we provide a number of Jupyter notebooks.
 * `Pairwise_Visualize_Abacus.ipynb`: 
 
 ## Citation
-If you use any of the code and/or data in this repository, we kindly request that you include following citations in your publication's .bib file, along with the URL of this repository.
+If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file, along with the URL of this repository.
+
+```
+@ARTICLE{ps26a,
+       author = {{Paranjape}, Aseem and {Sheth}, Ravi K.},
+        title = "{Zel'dovich smearing approximation of the BAO feature for model-agnostic cosmological inference}",
+      journal = {arXiv e-prints},
+     keywords = {Cosmology and Nongalactic Astrophysics},
+         year = 2026,
+        month = feb,
+          eid = {arXiv:2602.14533},
+        pages = {arXiv:2602.14533},
+          doi = {10.48550/arXiv.2602.14533},
+archivePrefix = {arXiv},
+       eprint = {2602.14533},
+ primaryClass = {astro-ph.CO},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+```
 
 ## Contact
 Aseem Paranjape: aseem_at_iucaa_dot_in

@@ -117,10 +117,14 @@ For each measured quantity, the data set includes separate measurements from eac
 
 ## Examples
 In the folder `examples/` we provide a number of Jupyter notebooks.
-* `ZelSmear_Explore_Theory.ipynb`: 
-* `ZelSmear_MCMC_mpi.ipynb` and `ZelSmear_MCMC.ipynb`: 
-* `ZelSmear_QuickShow.ipynb`:
-* `Pairwise_Visualize_Abacus.ipynb`: 
+* `ZelSmear_Explore_Theory.ipynb`:\
+  This notebook demonstrates the use of the theory routines using simple examples. There are step-by-step demonstrations for initializing the `TheoryManipulator` class, accessing file locations and default dictionaries, making a basic model prediction using `calc_model`, loading stored data, comparing data and model in plots and using $\chi^2$, accessing and plotting the ground truth linear 2pcf and (raw and smeared) basis functions and their derivatives, and finally producing 1-parameter variations around the stored best fit parameter vector (or any user-defined parameter vector) to study the impact of each parameter separately.    
+* `ZelSmear_MCMC_mpi.ipynb` and `ZelSmear_MCMC.ipynb`:\
+  These notebooks show how to use the model in an MCMC analysis. The notebook named `_mpi` is constructed for use with MPI on a multi-core desktop (using 6 cores by default, which can be changed). This notebook was used to produce all the MCMC results and associated plots in [PS26b](??). The second notebook is essentially a copy of the first, but is built to be used on a single processor, i.e. it will perform MCMC with a single chain.
+* `ZelSmear_QuickShow.ipynb`:\
+  This is a convenience notebook to track the progress of MCMC chains while they run. The various variables should be set to match the choices made in `ZelSmear_MCMC_mpi.ipynb` or `ZelSmear_MCMC.ipynb`, as the case may be.
+* `Pairwise_Visualize_Abacus.ipynb`:\
+  This notebook visualizes the stored measurements of pairwise correlations in the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples. It was used to generate some of the plots in [PS26b](??).
 
 ## Citation
 If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file, along with the URL of this repository.

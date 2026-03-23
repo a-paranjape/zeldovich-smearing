@@ -31,7 +31,7 @@ The code and data in this repository should be sufficient to reproduce all the m
 * Python 3.9+, NumPy 2.0+
 * [Cobaya](https://cobaya.readthedocs.io/en/latest/): Our model is implemented in the $\texttt{Cobaya}$ framework developed by [Torrado & Lewis (2021)](https://ui.adsabs.harvard.edu/abs/2021JCAP...05..057T/abstract). This allows for straightforward integration into Markov Chain Monte Carlo (MCMC) pipelines.
 * [GetDist](https://getdist.readthedocs.io/): This is used for analysing MCMC chains and producing plots of posterior and other distributions.
-* [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract).
+* [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract), with the source code available as `code/mlalgos.BiSequential` and the specific trained instance stored in `examples/binet/`. When measuring pairwise correlations, it also uses Python's `multiprocessing` package for parallelization using the `code/mllib.MLUtilities.run_processes` method.
 * [sahyadri-sandbox](https://github.com/a-paranjape/sahyadri-sandbox): This repository is used for our implementation of the core algorithms needed for measuring pairwise correlations (anisotropic 2pcf and power spectrum) in $N$-body tracer samples, although other implementations can also be used.
 
 ## Installation
@@ -68,7 +68,8 @@ The following steps should be sufficient for using the functionality of this rep
 
 
 ## Code organization
-* `zelsmear.py`: This is the main script containing definitions of the theory class `ZeldovichSmearingTheory` and likelihood class `ZeldovichSmearingLike`:
+* `zelsmear.py`:\
+  This is the main script containing definitions of the theory class `ZeldovichSmearingTheory` and likelihood class `ZeldovichSmearingLike`:
   * `ZeldovichSmearingLike`: Provides infrastructure to read and manipulate a data vector and covariance matrix from specified locations, so as to calculate a Gaussian (log-)likelihood. Assumes that the theory class will provide a compatible model prediction vector. 
   * `ZeldovichSmearingTheory`: Provides all necessary ingredients to compute a model prediction using a parameter dictionary, so as to be compatible with the data vector used by the `ZeldovichSmearingLike`. In addition to the top-level `calculate` method required by $\texttt{Cobaya}$'s samplers such as `mcmc`, this class includes several auxiliary methods to compute various interesting quantities[^1] such as
     * total prediction for multipoles of the observed tracer 2-point correlation function (2pcf) $\xi^{(\ell)}\_{\rm obs}(s)$ (`calc_xiNL`) and low $k$ power spectrum multipole integrals $\Sigma^{(\ell)2}_{\rm obs}$ (`calc_Sig2obs`) for use in MCMC,
@@ -79,13 +80,20 @@ The following steps should be sufficient for using the functionality of this rep
     * basis function integrals $\bar{\lambda}_m(s|\sigma),\bar{\bar{\lambda}}_m(s|\sigma)$ (`calc_lambda_bars`),
     * interesting length scales such as the peak $r_{\rm peak}$, linear point $r_{\rm LP}$ and zero-crossing $r_{\rm ZC}$ of the linear 2pcf (`calc_linearscales`),
     * first derivative ${\rm d}\xi_{\rm lin}/{\rm d}\ln r$ of the linear 2pcf (`calc_dxidlnr`).
-* `theory.py`: This script contains the `TheoryManipulator` class that internally sets up a dummy Cobaya-friendly info dictionary and exposes user-friendly routines to compute and manipulate the model prediction. 
+      
+* `theory.py`:\
+  This script contains the `TheoryManipulator` class that internally sets up a dummy Cobaya-friendly info dictionary and exposes user-friendly routines to compute and manipulate the model prediction. 
   * Upon instantiation, the `TheoryManipulator.theory` object contains as methods all the methods of the `ZeldovichSmearingTheory` class, e.g. those described above.
   * Additionally, the `TheoryManipulator` instance exposes the methods `calc_model`, `calc_chi2` and `vary_prediction`, among others, which can be used to study the model predictions and compare them with the data sets included in the repository.
     
   Example usage can be found in the `ZelSmear_Explore_Theory.ipynb` notebook described under [Examples](#examples).
-* `pairwise_abacus.py`: \[DESCRIPTION PENDING\]
-* `paths.py`: This is an auxiliary file that must be edited during installation and containing paths to various dependencies.
+  
+* `pairwise_abacus.py`:\
+  This script implements parallelized calculations of the 2pcf and power spectrum of the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples of $\textsf{AbacusSummit}$ halos, in real space as well as multipoles in redshift space. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you want to use it.\
+  **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc).
+  
+* `paths.py`:\
+  This is an auxiliary file that must be edited during installation and containing paths to various dependencies.
 
 [^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
 

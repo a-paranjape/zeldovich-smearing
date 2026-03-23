@@ -58,16 +58,17 @@ The following steps should be sufficient for using the functionality of this rep
        * Setup halo paths. *(Only needed if pairwise correlations need to be measured in N-body samples)*
          * Set the variable `Sahyadri_Path` to `/your/path/to/sahyadri-sandbox/scripts/post-process/`.
          * Set the variable `Abacus_Path` to `/your/path/to/abacus/halos` (these will need to be separately downloaded, see the $\texttt{AbacusSummit}$ [data access page](https://abacussummit.readthedocs.io/en/latest/data-access.html)).
-   * Test the basic installation:
-      * In a terminal in `your/path/to/zeldovich-smearing/code`, type
-        ```
-        python -c "from theory import TheoryManipulator; tm = TheoryManipulator(sample='DESI-LRG2')"
-        ```
-         This should produce a bunch of text related to the `BiSequential` basis instance, followed by a list containing two paths to `.txt` files and ending with the phrase `... setup complete`. \
-        *\[**Note:** Although this doesn't explicitly check whether MPI capability (if requested) is correctly installed, that should have been accounted for if the Cobaya installation steps for MPI support were followed precisely.\]*
+5. Test the basic installation:
+   * In a terminal in `your/path/to/zeldovich-smearing/code`, type
+   ```
+   python -c "from theory import TheoryManipulator; tm = TheoryManipulator(sample='DESI-LRG2')"
+   ```
+   This should produce a bunch of text related to the `BiSequential` basis instance, followed by a list containing two paths to `.txt` files and ending with the phrase `... setup complete`. \
+   *\[**Note:** Although this doesn't explicitly check whether MPI capability (if requested) is correctly installed, that should have been accounted for if the Cobaya installation steps for MPI support were followed precisely.\]*
 
 
 ## Code organization
+The source code is contained in the folder `code/` and is distributed across the following Python scripts.
 * `zelsmear.py`:\
   This is the main script containing definitions of the theory class `ZeldovichSmearingTheory` and likelihood class `ZeldovichSmearingLike`:
   * `ZeldovichSmearingLike`: Provides infrastructure to read and manipulate a data vector and covariance matrix from specified locations, so as to calculate a Gaussian (log-)likelihood. Assumes that the theory class will provide a compatible model prediction vector. 
@@ -83,17 +84,22 @@ The following steps should be sufficient for using the functionality of this rep
       
 * `theory.py`:\
   This script contains the `TheoryManipulator` class that internally sets up a dummy Cobaya-friendly info dictionary and exposes user-friendly routines to compute and manipulate the model prediction. 
-  * Upon instantiation, the `TheoryManipulator.theory` object contains as methods all the methods of the `ZeldovichSmearingTheory` class, e.g. those described above.
-  * Additionally, the `TheoryManipulator` instance exposes the methods `calc_model`, `calc_chi2` and `vary_prediction`, among others, which can be used to study the model predictions and compare them with the data sets included in the repository.
+  * Upon instantiation of `TheoryManipulator`, an instance of `ZeldovichSmearingTheory` is available as `TheoryManipulator.theory`, containing all the methods described above.
+  * Similarly, an instance of `ZeldovichSmearingLike` is available as `TheoryManipulator.like`, which can be used to access stored data and covariance matrix arrays in multiple formats.
+  * Additionally, the `TheoryManipulator` instance exposes the methods `calc_model`, `load_data`, `calc_chi2` and `vary_prediction`, among others, which can be used to study the model predictions and compare them with the data sets included in the repository, without explicitly referring to `TheoryManipulator.theory` or `TheoryManipulator.like`.
+  * Finally, the `TheoryManipulator` instance has some useful attributes:
+    * `fiducial` - a dictionary listing all the parameters used by the model along with their fiducial values,
+    * `best_fit` - a dictionary providing the best fit values of the model parameters for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples
     
   Example usage can be found in the `ZelSmear_Explore_Theory.ipynb` notebook described under [Examples](#examples).
-  
+
 * `pairwise_abacus.py`:\
-  This script implements parallelized calculations of the 2pcf and power spectrum of the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples of $\textsf{AbacusSummit}$ halos, in real space as well as multipoles in redshift space. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you want to use it.\
-  **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc).
+  This script implements parallelized calculations of the 2pcf and power spectrum of the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples of $\textsf{AbacusSummit}$ halos, in real space as well as multipoles in redshift space. It can also be edited to measure these quantities for custom samples from $\textsf{AbacusSummit}$. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you want to use it.\
+  **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc).\
+  **Note:** To use this script, $\textsf{AbacusSummit}$ halo samples would need to be separately downloaded. The download location should then be provided to the code by editing `paths.py` (see [Installation](#installation)).
   
 * `paths.py`:\
-  This is an auxiliary file that must be edited during installation and containing paths to various dependencies.
+  This is an auxiliary file that must be edited during installation and contains paths to various dependencies.
 
 [^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
 

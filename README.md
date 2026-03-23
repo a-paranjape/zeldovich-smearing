@@ -1,5 +1,16 @@
 # Model-agnostic inference using the BAO feature
 
+## Table of contents
+* [Introduction](#introduction)
+* [Dependencies](#dependencies)
+* [Installation](#installation)
+* [Code organization](#code-organization)
+* [Data organization](#data-organization)
+* [Examples](#examples)
+* [Citation](#citation)
+* [Contact](#contact)
+
+## Introduction
 A model-agnostic description of the baryon acoustic oscillation (BAO) feature in redshift space requires a number of ingredients. Physically, one must describe the impact of cosmological bulk flows which progressively and anisotropically smear out the feature over time. One must also model the effects of the scale dependence of tracer bias and the mode coupling between short and long scales. All of these can be incorporated using the Zel'dovich approximation alone, without reference to any particular cosmological model. On the technical front, one needs a robust, complete and cosmology-independent basis to describe the shape of the real space BAO feature in linear theory, which can then be propagated to the nonlinearly evolved, measured feature in redshift space. Finally, as in a traditional analysis, one must account for a possibly incorrect conversion of observed angular and redshift separations to comoving lengths.
 
 These ingredients have been developed by us in a series of recent papers. 
@@ -17,6 +28,7 @@ We also provide the code we used to produce the measurements for the $\textsf{DE
 The code and data in this repository should be sufficient to reproduce all the main results of [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??). We have provided several **example notebooks** (described below) to implement the MCMC analysis and explore the theoretical model.
 
 ## Dependencies
+* Python 3.9+, NumPy 2.0+
 * [Cobaya](https://cobaya.readthedocs.io/en/latest/): Our model is implemented in the $\texttt{Cobaya}$ framework developed by [Torrado & Lewis (2021)](https://ui.adsabs.harvard.edu/abs/2021JCAP...05..057T/abstract). This allows for straightforward integration into Markov Chain Monte Carlo (MCMC) pipelines.
 * [GetDist](https://getdist.readthedocs.io/): This is used for analysing MCMC chains and producing plots of posterior and other distributions.
 * [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract).
@@ -24,7 +36,7 @@ The code and data in this repository should be sufficient to reproduce all the m
 
 ## Installation
 The following steps should be sufficient for using the functionality of this repository:
-1. Install $\texttt{Cobaya}$ as described [here](https://cobaya.readthedocs.io/en/latest/installation.html), paying attention to its dependencies, which are also inherited by us. If you wish to run the MCMC analysis using MPI support, please be sure to install $\texttt{Cobaya}$ with MPI support, as described on its installation page. Installing $\texttt{Cobaya}$ should also automatically install $\texttt{GetDist}$ if you don't already have it.
+1. Install $\texttt{Cobaya}$ as described [here](https://cobaya.readthedocs.io/en/latest/installation.html). If you wish to run the MCMC analysis using MPI support, please be sure to install $\texttt{Cobaya}$ with MPI support, as described on its installation page. Installing $\texttt{Cobaya}$ should also automatically install $\texttt{GetDist}$ if you don't already have it.
 2. Clone into the $\texttt{mlfundas}$ repository. E.g., for HTTPS-based transfer, in your chosen install location use
   ```
   git clone https://github.com/a-paranjape/mlfundas.git
@@ -63,21 +75,26 @@ The following steps should be sufficient for using the functionality of this rep
     * individual contributions of the 'propagator' (`calc_xiprop`) and 'mode-coupling' pieces (`calc_xiMC`) in 2pcf multipoles,
     * protohalo 2pcf prediction (`calc_xiprotohalo`),
     * raw basis functions $b_m(r)$ (`calc_basis`) and their first derivatives (`calc_dbdr`),
-    * smeared basis functions $\lambda_m(s)$ (`calc_lambda`) and their derivatives $\lambda_m^{(n)}(s)$ (`calc_der_lambda`) and associated auxiliary functions $\Lambda_m^{(n)}$ (`calc_der_Lambda`),
-    * basis function integrals $\bar{\lambda}_m(s),\bar{\bar{\lambda}}_m(s)$ (`calc_lambda_bars`),
-    * interesting length scales such as the peak $r_{\rm peak}$, linear point $r_{\rm LP}$ and zero-crossing $r_{\rm ZC}$ of the linear 2pcf, etc.
-* `theory.py`: \[DESCRIPTION PENDING\]
+    * smeared basis functions $\lambda_m(s|\sigma)$ (`calc_lambda`) and their derivatives $\lambda_m^{(n)}(s|\sigma)$ (`calc_der_lambda`) and associated auxiliary functions $\Lambda_m^{(n)}$ (`calc_der_Lambda`),
+    * basis function integrals $\bar{\lambda}_m(s|\sigma),\bar{\bar{\lambda}}_m(s|\sigma)$ (`calc_lambda_bars`),
+    * interesting length scales such as the peak $r_{\rm peak}$, linear point $r_{\rm LP}$ and zero-crossing $r_{\rm ZC}$ of the linear 2pcf (`calc_linearscales`),
+    * first derivative ${\rm d}\xi_{\rm lin}/{\rm d}\ln r$ of the linear 2pcf (`calc_dxidlnr`).
+* `theory.py`: This script contains the `TheoryManipulator` class that internally sets up a dummy Cobaya-friendly info dictionary and exposes user-friendly routines to compute and manipulate the model prediction. 
+  * Upon instantiation, the `TheoryManipulator.theory` object contains as methods all the methods of the `ZeldovichSmearingTheory` class, e.g. those described above.
+  * Additionally, the `TheoryManipulator` instance exposes the methods `calc_model`, `calc_chi2` and `vary_prediction`, among others, which can be used to study the model predictions and compare them with the data sets included in the repository.
+    
+  Example usage can be found in the `ZelSmear_Explore_Theory.ipynb` notebook described under [Examples](#examples).
 * `pairwise_abacus.py`: \[DESCRIPTION PENDING\]
-* `paths.py`: This is an auxiliary file edited during installation and containing paths to various dependencies.
+* `paths.py`: This is an auxiliary file that must be edited during installation and containing paths to various dependencies.
 
 [^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
 
 ## Data organization
 We provide several useful data sets in the folder `examples/data/`.
 
-The data sets contained in the repository include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
+These data sets include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
 * Redshift space multipoles $\ell=0,2,4$ of the tracer 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$.
-* Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$.
+* Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$ for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples.
 * Integrals of the power spectrum multipoles over low $k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.
 * Gauss-Poisson estimates of the joint covariance matrix of $\xi^{(\ell)}\_{\rm obs}(s)$ and $\Sigma^{(\ell)2}_{\rm obs}$. For the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples, these are scaled to match diagonal errors on each quantity as estimated using 25 realizations of the $\textsf{AbacusSummit}$ baseline `c000` boxes.
 * Real space 2pcf and power spectrum estimates for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples (for reference only).
@@ -114,4 +131,7 @@ archivePrefix = {arXiv},
 ```
 
 ## Contact
-Aseem Paranjape: aseem_at_iucaa_dot_in
+
+Aseem Paranjape | aseem_at_iucaa_dot_in 
+
+Ravi K Sheth    | shethrk_at_physics_dot_upenn_dot_edu 

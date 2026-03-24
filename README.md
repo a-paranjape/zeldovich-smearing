@@ -95,19 +95,19 @@ The source code is contained in the folder `code/` and is distributed across the
   Example usage can be found in the `ZelSmear_Explore_Theory.ipynb` notebook described under [Examples](#examples).
 
 * `pairwise_abacus.py`:\
-  This script implements parallelized calculations of the 2pcf and power spectrum of the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples of $\textsf{AbacusSummit}$ halos, in real space as well as multipoles in redshift space. It can also be edited to measure these quantities for custom samples from $\textsf{AbacusSummit}$. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you want to use it.\
-  **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc).\
+  This script implements parallelized calculations of the 2pcf and power spectrum of the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples of $\textsf{AbacusSummit}$ halos, in real space as well as multipoles in redshift space. It can also be edited to measure these quantities for custom samples from $\textsf{AbacusSummit}$. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you have difficulty using it.\
+  **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc) or [TreeCorr](https://github.com/rmjarvis/TreeCorr).\
   **Note:** To use this script, $\textsf{AbacusSummit}$ halo samples would need to be separately downloaded. The download location should then be provided to the code by editing `paths.py` (see [Installation](#installation)).
   
 * `paths.py`:\
-  This is an auxiliary file that must be edited during installation and contains paths to various dependencies.
+  This is an auxiliary file that must be edited during [installation](#installation) and contains paths to various dependencies.
 
 [^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
 
 ## Data organization
 We provide several useful data sets in the folder `examples/data/`.
 
-These data sets include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
+These include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
 * Redshift space multipoles $\ell=0,2,4$ of the tracer 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$.
 * Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$ for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples.
 * Integrals of the power spectrum multipoles over low $k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.

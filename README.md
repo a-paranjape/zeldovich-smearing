@@ -30,13 +30,14 @@ The code and data in this repository should be sufficient to reproduce all the m
 ## Dependencies
 * Python 3.9+, NumPy 2.0+
 * [Cobaya](https://cobaya.readthedocs.io/en/latest/): Our model is implemented in the $\texttt{Cobaya}$ framework developed by [Torrado & Lewis (2021)](https://ui.adsabs.harvard.edu/abs/2021JCAP...05..057T/abstract). This allows for straightforward integration into Markov Chain Monte Carlo (MCMC) pipelines.
+  * `mpi4py`: This is needed if $\texttt{Cobaya}$ is to be installed with MPI support (see [Installation](#installation)). 
 * [GetDist](https://getdist.readthedocs.io/): This is used for analysing MCMC chains and producing plots of posterior and other distributions.
 * [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract), with the source code available as `code/mlalgos.BiSequential` and the specific trained instance stored in `examples/binet/`. When measuring pairwise correlations, it also uses Python's `multiprocessing` package for parallelization using the `code/mllib.MLUtilities.run_processes` method.
 * [sahyadri-sandbox](https://github.com/a-paranjape/sahyadri-sandbox): This repository is used for our implementation of the core algorithms needed for measuring pairwise correlations (anisotropic 2pcf and power spectrum) in $N$-body tracer samples, although other implementations can also be used.
 
 ## Installation
 The following steps should be sufficient for using the functionality of this repository:
-1. Install $\texttt{Cobaya}$ as described [here](https://cobaya.readthedocs.io/en/latest/installation.html). If you wish to run the MCMC analysis using MPI support, please be sure to install $\texttt{Cobaya}$ with MPI support, as described on its installation page. Installing $\texttt{Cobaya}$ should also automatically install $\texttt{GetDist}$ if you don't already have it.
+1. Install $\texttt{Cobaya}$ as described [here](https://cobaya.readthedocs.io/en/latest/installation.html). If you wish to run the MCMC analysis using MPI support, please be sure to install $\texttt{Cobaya}$ with MPI support, as described on its installation page (this will require installing `mpi4py`). Installing $\texttt{Cobaya}$ should also automatically install $\texttt{GetDist}$ if you don't already have it.
 2. Clone into the $\texttt{mlfundas}$ repository. E.g., for HTTPS-based transfer, in your chosen install location use
   ```
   git clone https://github.com/a-paranjape/mlfundas.git
@@ -120,14 +121,14 @@ In the folder `examples/` we provide a number of Jupyter notebooks.
 * `ZelSmear_Explore_Theory.ipynb`:\
   This notebook demonstrates the use of the theory routines using simple examples. There are step-by-step demonstrations for initializing the `TheoryManipulator` class, accessing file locations and default dictionaries, making a basic model prediction using `calc_model`, loading stored data, comparing data and model in plots and using $\chi^2$, accessing and plotting the ground truth linear 2pcf and (raw and smeared) basis functions and their derivatives, and finally producing 1-parameter variations around the stored best fit parameter vector (or any user-defined parameter vector) to study the impact of each parameter separately.    
 * `ZelSmear_MCMC_mpi.ipynb` and `ZelSmear_MCMC.ipynb`:\
-  These notebooks show how to use the model in an MCMC analysis. The notebook named `_mpi` is constructed for use with MPI on a multi-core desktop (using 6 cores by default, which can be changed). This notebook was used to produce all the MCMC results and associated plots in [PS26b](??). The second notebook is essentially a copy of the first, but is built to be used on a single processor, i.e. it will perform MCMC with a single chain.
+  These notebooks show how to use the model in an MCMC analysis. The notebook `ZelSmear_MCMC_mpi.ipynb` is constructed for use with MPI on a multi-core desktop (using 6 cores by default, which can be changed). This notebook was used to produce all the MCMC results and associated plots in [PS26b](??). The notebook `ZelSmear_MCMC.ipynb` is essentially a copy of `ZelSmear_MCMC_mpi.ipynb`, but is built to be used on a single processor, i.e. it will perform MCMC with a single chain and *can be run without MPI support*.
 * `ZelSmear_QuickShow.ipynb`:\
   This is a convenience notebook to track the progress of MCMC chains while they run. The various variables should be set to match the choices made in `ZelSmear_MCMC_mpi.ipynb` or `ZelSmear_MCMC.ipynb`, as the case may be.
 * `Pairwise_Visualize_Abacus.ipynb`:\
   This notebook visualizes the stored measurements of pairwise correlations in the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples. It was used to generate some of the plots in [PS26b](??).
 
 ## Citation
-If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file, along with the URL of this repository.
+If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file and the URL of this repository in your text or acknowledgments.
 
 ```
 @ARTICLE{ps26a,

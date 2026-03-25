@@ -18,14 +18,14 @@ These ingredients have been developed by us in a series of recent papers.
 This repository provides an implementation of the final **Zel'dovich smearing** model that brings these pieces together, as described by [Paranjape & Sheth (2026a)](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) (PS26a below) and [Paranjape & Sheth (2026b)](??) (PS26b below). 
 
 Additionally, we provide measurements of the relevant pairwise correlations and their expected covariance for the following tracer samples: 
+* Two $N$-body halo samples drawn from the [publicly available](https://abacussummit.readthedocs.io/en/latest/abacussummit.html) _AbacusSummit_ suite's baseline `c000` cosmology as described by [PS26b](??):
+  * _DESI-LRG2_ ($z=0.8$) mimicking luminous red galaxies (LRGs) being observed by the [DESI](https://ui.adsabs.harvard.edu/abs/2016arXiv161100036D/abstract) survey, 
+  * _Euclid-ELG_ ($z=1.1$) mimicking H $\alpha$ emission line galaxies (ELGs) being observed by the [*Euclid*](https://ui.adsabs.harvard.edu/abs/2025A%26A...697A...1E/abstract) mission.
 * A toy sample mimicking DESI LRGs as described by [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract).
-* Two $N$-body halo samples drawn from the [publicly available](https://abacussummit.readthedocs.io/en/latest/abacussummit.html) $\textsf{AbacusSummit}$ suite's baseline `c000` cosmology as described by [PS26b](??):
-  * $\textsf{DESI-LRG2}$ ($z=0.8$) mimicking luminous red galaxies (LRGs) being observed by the [DESI](https://ui.adsabs.harvard.edu/abs/2016arXiv161100036D/abstract) survey, 
-  * $\textsf{Euclid-ELG}$ ($z=1.1$) mimicking H $\alpha$ emission line galaxies (ELGs) being observed by the [*Euclid*](https://ui.adsabs.harvard.edu/abs/2025A%26A...697A...1E/abstract) mission.
 
-We also provide the code we used to produce the measurements for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ halo samples.
+We also provide the code we used to produce the measurements for the _DESI-LRG2_ and _Euclid-ELG_ halo samples.
 
-The code and data in this repository should be sufficient to reproduce all the main results of [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??). We have provided several **example notebooks** (described below) to implement the MCMC analysis and explore the theoretical model.
+The code and data in this repository should be sufficient to reproduce all the main results of [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??). We have provided several *example notebooks* (described below) to implement the MCMC analysis and explore the theoretical model.
 
 ## Dependencies
 * Python 3.9+, NumPy 2.0+
@@ -58,7 +58,7 @@ The following steps should be sufficient for using the functionality of this rep
        * Set the variable `Basis_Root` to `/your/path/to/mlfundas/examples/binet/`.
        * Setup halo paths. *(Only needed if pairwise correlations need to be measured in N-body samples)*
          * Set the variable `Sahyadri_Path` to `/your/path/to/sahyadri-sandbox/scripts/post-process/`.
-         * Set the variable `Abacus_Path` to `/your/path/to/abacus/halos` (these will need to be separately downloaded, see the $\texttt{AbacusSummit}$ [data access page](https://abacussummit.readthedocs.io/en/latest/data-access.html)).
+         * Set the variable `Abacus_Path` to `/your/path/to/abacus/halos` (these will need to be separately downloaded, see the _AbacusSummit_ [data access page](https://abacussummit.readthedocs.io/en/latest/data-access.html)).
 5. Test the basic installation:
    * In a terminal in `your/path/to/zeldovich-smearing/code`, type
    ```
@@ -88,16 +88,19 @@ The source code is contained in the folder `code/` and is distributed across the
   * Upon instantiation of `TheoryManipulator`, an instance of `ZeldovichSmearingTheory` is available as `TheoryManipulator.theory`, containing all the methods described above.
   * Similarly, an instance of `ZeldovichSmearingLike` is available as `TheoryManipulator.like`, which can be used to access stored data and covariance matrix arrays in multiple formats.
   * Additionally, the `TheoryManipulator` instance exposes the methods `calc_model`, `load_data`, `calc_chi2` and `vary_prediction`, among others, which can be used to study the model predictions and compare them with the data sets included in the repository, without explicitly referring to `TheoryManipulator.theory` or `TheoryManipulator.like`.
-  * Finally, the `TheoryManipulator` instance has some useful attributes:
-    * `fiducial` - a dictionary listing all the parameters used by the model along with their fiducial values,
-    * `best_fit` - a dictionary providing the best fit values of the model parameters for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples
+  * Finally, the `TheoryManipulator` instance has some useful attributes, such as:
+    * `fiducial` - a dictionary with an exhaustive list of all varied and derived parameters in the model along with their fiducial values for each data sample,
+    * `eval_dict_fid` - a restricted version of `fiducial` that can be passed to `calc_model`,
+    * `best_fit` - a dictionary providing the best fit values of the varied model parameters for the _DESI-LRG2_ and _Euclid-ELG_ samples,
+    * `params_list` - a list containing the names of all varied parameters,
+    * `latex_list` - a list containing Latex descriptions of all varied parameters (useful for labelling plots).
     
   Example usage can be found in the `ZelSmear_Explore_Theory.ipynb` notebook described under [Examples](#examples).
 
 * `pairwise_abacus.py`:\
-  This script implements parallelized calculations of the 2pcf and power spectrum of the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples of $\textsf{AbacusSummit}$ halos, in real space as well as multipoles in redshift space. It can also be edited to measure these quantities for custom samples from $\textsf{AbacusSummit}$. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you have difficulty using it.\
+  This script implements parallelized calculations of the 2pcf and power spectrum of the _DESI-LRG2_ and _Euclid-ELG_ samples of _AbacusSummit_ halos, in real space as well as multipoles in redshift space. It can also be edited to measure these quantities for custom samples from _AbacusSummit_. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you have difficulty using it.\
   **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc) or [TreeCorr](https://github.com/rmjarvis/TreeCorr).\
-  **Note:** To use this script, $\textsf{AbacusSummit}$ halo samples would need to be separately downloaded. The download location should then be provided to the code by editing `paths.py` (see [Installation](#installation)).
+  **Note:** To use this script, _AbacusSummit_ halo samples would need to be separately downloaded. The download location should then be provided to the code by editing `paths.py` (see [Installation](#installation)).
   
 * `paths.py`:\
   This is an auxiliary file that must be edited during [installation](#installation) and contains paths to various dependencies.
@@ -107,14 +110,14 @@ The source code is contained in the folder `code/` and is distributed across the
 ## Data organization
 We provide several useful data sets in the folder `examples/data/`.
 
-These include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples constructed using $\textsf{AbacusSummit}$ halos from [PS26b](??):
+These include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the _DESI-LRG2_ and _Euclid-ELG_ samples constructed using _AbacusSummit_ halos from [PS26b](??):
 * Redshift space multipoles $\ell=0,2,4$ of the tracer 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$.
-* Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$ for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples.
+* Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$ for the _DESI-LRG2_ and _Euclid-ELG_ samples.
 * Integrals of the power spectrum multipoles over low $k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.
-* Gauss-Poisson estimates of the joint covariance matrix of $\xi^{(\ell)}\_{\rm obs}(s)$ and $\Sigma^{(\ell)2}_{\rm obs}$. For the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples, these are scaled to match diagonal errors on each quantity as estimated using 25 realizations of the $\textsf{AbacusSummit}$ baseline `c000` boxes.
-* Real space 2pcf and power spectrum estimates for the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples (for reference only).
+* Gauss-Poisson estimates of the joint covariance matrix of $\xi^{(\ell)}\_{\rm obs}(s)$ and $\Sigma^{(\ell)2}_{\rm obs}$. For the _DESI-LRG2_ and _Euclid-ELG_ samples, these are scaled to match diagonal errors on each quantity as estimated using 25 realizations of the _AbacusSummit_ baseline `c000` boxes.
+* Real space 2pcf and power spectrum estimates for the _DESI-LRG2_ and _Euclid-ELG_ samples (for reference only).
     
-For each measured quantity, the data set includes separate measurements from each realization (or 'phase') of the 25 available, along with plot-friendly files reporting the measurements and diagonal errors for the reference phase for each sample. The reference phases are `ph000` for $\textsf{DESI-LRG2}$ and `ph009` for $\textsf{Euclid-ELG}$. MCMC-friendly data files for the reference samples are also provided for use with `ZeldovichSmearingLike`.
+For each measured quantity, the data set includes separate measurements from each realization (or 'phase') of the 25 available, along with plot-friendly files reporting the measurements and diagonal errors for the reference phase for each sample. The reference phases are `ph000` for _DESI-LRG2_ and `ph009` for _Euclid-ELG_. MCMC-friendly data files for the reference samples are also provided for use with `ZeldovichSmearingLike`.
 
 ## Examples
 In the folder `examples/` we provide a number of Jupyter notebooks.
@@ -125,7 +128,7 @@ In the folder `examples/` we provide a number of Jupyter notebooks.
 * `ZelSmear_QuickShow.ipynb`:\
   This is a convenience notebook to track the progress of MCMC chains while they run. The various variables should be set to match the choices made in `ZelSmear_MCMC_mpi.ipynb` or `ZelSmear_MCMC.ipynb`, as the case may be.
 * `Pairwise_Visualize_Abacus.ipynb`:\
-  This notebook visualizes the stored measurements of pairwise correlations in the $\textsf{DESI-LRG2}$ and $\textsf{Euclid-ELG}$ samples. It was used to generate some of the plots in [PS26b](??).
+  This notebook visualizes the stored measurements of pairwise correlations in the _DESI-LRG2_ and _Euclid-ELG_ samples. It was used to generate some of the plots in [PS26b](??).
 
 ## Citation
 If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file and the URL of this repository in your text or acknowledgments.

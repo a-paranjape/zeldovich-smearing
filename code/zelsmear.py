@@ -224,7 +224,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         
         self.svals = np.loadtxt(self.scales_file)        
 
-        self.offset = 1 if self.include_Sig2obs else 0
+        self.offset = self.L_Max if self.include_Sig2obs else 0
 
         self.max_deriv = 6 if self.model_AP else 5 # largest derivative needed for smoothed basis
         if self.model_AP:

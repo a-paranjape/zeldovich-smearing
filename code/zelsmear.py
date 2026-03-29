@@ -224,8 +224,6 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         
         self.svals = np.loadtxt(self.scales_file)        
 
-        self.offset = self.L_Max if self.include_Sig2obs else 0
-
         self.max_deriv = 6 if self.model_AP else 5 # largest derivative needed for smoothed basis
         if self.model_AP:
             # matrices to model AP-type effects due to fiducial cosmology
@@ -739,11 +737,12 @@ class ZeldovichSmearingTheory(Theory,Utilities):
 
         xiNL = xiNL.flatten() # order xiNL(ell=0),xiNL(ell=2),xiNL(ell=4)
 
+        # NOTE: no indexing offset below since deletion is on array *before* concatenating with Sig2obs 
         if self.modify_data & (self.L_Max > 1):
             if self.L_Max == 3:
-                xiNL = np.delete(xiNL,[self.offset+self.N_Data,self.offset+2*self.N_Data])
+                xiNL = np.delete(xiNL,[self.N_Data,2*self.N_Data])
             else:
-                xiNL = np.delete(xiNL,[self.offset+self.N_Data])
+                xiNL = np.delete(xiNL,[self.N_Data])
 
         if self.include_Sig2obs:
             Sig2obs = self.calc_Sig2obs(params_dict) # (L_Max,)

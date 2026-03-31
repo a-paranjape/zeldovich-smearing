@@ -30,7 +30,8 @@ The code and data in this repository should be sufficient to reproduce all the m
 ## Dependencies
 * Python 3.9+, NumPy 2.0+
 * [Cobaya](https://cobaya.readthedocs.io/en/latest/): Our model is implemented in the $\texttt{Cobaya}$ framework developed by [Torrado & Lewis (2021)](https://ui.adsabs.harvard.edu/abs/2021JCAP...05..057T/abstract). This allows for straightforward integration into Markov Chain Monte Carlo (MCMC) pipelines.
-  * `mpi4py`: This is needed if $\texttt{Cobaya}$ is to be installed with MPI support (see [Installation](#installation)). 
+  * `mpi4py`: This is needed if $\texttt{Cobaya}$ is to be installed with MPI support (see [Installation](#installation)).
+  * `ipyparallel`: This is needed in `ZelSmear_MCMC_mpi.ipynb` (see [Examples](#examples)) to run MCMC chains with MPI support. 
 * [GetDist](https://getdist.readthedocs.io/): This is used for analysing MCMC chains and producing plots of posterior and other distributions.
 * [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract), with the source code available as `code/mlalgos.BiSequential` and the specific trained instance stored in `examples/binet/`. When measuring pairwise correlations, it also uses Python's `multiprocessing` package for parallelization using the `code/mllib.MLUtilities.run_processes` method.
 * [sahyadri-sandbox](https://github.com/a-paranjape/sahyadri-sandbox): This repository is used for our implementation of the core algorithms needed for measuring pairwise correlations (anisotropic 2pcf and power spectrum) in $N$-body tracer samples, although other implementations can also be used.

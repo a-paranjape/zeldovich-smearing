@@ -714,7 +714,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         out_of_bounds = out_of_bounds | (peak > self.rvals_max_check) | (peak < self.rvals_min_check)
         out_of_bounds = out_of_bounds | (dip > self.rvals_max_check) | (dip < self.rvals_min_check)
         # if self.L_Max < 3:
-        #     out_of_bounds = out_of_bounds | (ZC > self.rvals_max_check) | (ZC < self.rvals_min_check)
+        out_of_bounds = out_of_bounds | (ZC > self.rvals_max_check) | (ZC < self.rvals_min_check)
         if out_of_bounds:
             state['model'] = np.inf*np.ones(self.dim)
             return

@@ -1,0 +1,14 @@
+
+# 10sigma
+- DESI-LRG2/withoutAP/iter0(done),1(done),2(pending) --> TO BE REPEATED AFTER EIGVAL FIX
+- Euclid-ELG/withoutAP/iter0(pending),1(pending),2(pending)
+
+# y-bins, 10sigma
+- DESI-LRG2/withAP/iter0(done:R-1~0.022),1(done:R-1~0.015),2(done) --> TO BE REPEATED AFTER EIGVAL FIX
+- Euclid-ELG/withAP/iter0(running(after eigval fix);prev saved:R-1~0.025),1(pending),2(pending)
+- Euclid-ELG/withAP[prior:q2>0]/iter0(paused),1(pending),2(pending) --> PROBABLY NOT NEEDED AFTER EIGVAL FIX
+
+# s-bins, 6sigma --> ABANDONED
+- DESI-LRG2/withAP/iter0(incomplete),1(pending),2(pending)
+- Euclid-ELG/withAP/iter0(pending),1(pending),2(pending)
+

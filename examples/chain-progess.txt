@@ -4,8 +4,8 @@
 - Euclid-ELG/withoutAP/iter0(pending),1(pending),2(pending)
 
 # y-bins, 10sigma
-- DESI-LRG2/withAP/iter0(stopped:R-1~0.033),1(done),2(running) --> REPEATING AFTER EIGVAL FIX
-- Euclid-ELG/withAP/iter0(stopped:R-1~0.04),1(stopped:R-1~0.053),2(pending)
+- DESI-LRG2/withAP/iter0(stopped:R-1~0.033),1(done),2(done) 
+- Euclid-ELG/withAP/iter0(stopped:R-1~0.04),1(stopped:R-1~0.053),2(running)
 - Euclid-ELG/withAP[prior:q2>0]/iter0(paused),1(pending),2(pending) --> PROBABLY NOT NEEDED AFTER EIGVAL FIX
 
 # s-bins, 6sigma --> ABANDONED

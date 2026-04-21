@@ -721,7 +721,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
 
         if self.model_AP:
             xiNL,xiNL_der = self.calc_xiNL(params_dict) # (L_Max,s)
-            Daiso = params_dict['Daiso']
+            # Daiso = params_dict['Daiso']
             DaAP = params_dict['DaAP']
             temp = (2/3.)*np.dot(self.Cmat,xiNL_der) # (L_Max,s)
             temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
@@ -750,7 +750,8 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                 temp = (4/3.)*np.dot(self.Cmat,Sig2obs)
                 temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
                 temp = np.dot(self.Amat,Sig2obs) - temp
-                Sig2obs = Sig2obs*(1+2*Daiso) + DaAP*temp
+                # Sig2obs *= (1+2*Daiso) 
+                Sig2obs += DaAP*temp
             xiNL = np.concatenate((Sig2obs,xiNL))
         
         state['model'] = xiNL.copy()

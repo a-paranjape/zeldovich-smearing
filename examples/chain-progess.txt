@@ -1,7 +1,7 @@
 
 # y-bins, 10sigma, WITHOUT Daiso --> final
-- DESI-LRG2/withAP/iter0(stopped:R-1~0.035),1(**running**),2(pending) 
-- Euclid-ELG/withAP/iter0(stopped:R-1~0.017),1(pending),2(pending)
+- DESI-LRG2/withAP/iter0(stopped:R-1~0.035),1(stopped:R-1~0.012),2(pending) 
+- Euclid-ELG/withAP/iter0(stopped:R-1~0.017),1(**running*),2(pending)
 
 # 10sigma
 - DESI-LRG2/withoutAP/iter0(pending),1(pending),2(pending) 

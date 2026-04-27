@@ -1,6 +1,6 @@
 
 # y-bins, 10sigma, WITHOUT Daiso --> final
-- DESI-LRG2/withAP/iter0(stopped:R-1~0.035),1(stopped:R-1~0.012),2(**running**) 
+- DESI-LRG2/withAP/iter0(stopped:R-1~0.035),1(stopped:R-1~0.012),2(done) 
 - Euclid-ELG/withAP/iter0(stopped:R-1~0.017),1(stopped:R-1~0.010),2(stuck:R-1~0.02)
 
 # 10sigma

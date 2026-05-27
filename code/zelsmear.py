@@ -58,7 +58,11 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
             # expect 2 data files
             print(self.data_file)
             if len(self.data_file)==2:
-                data = np.concatenate((np.loadtxt(self.data_file[0]).T[0],np.loadtxt(self.data_file[1])))
+                Sig2obs_data = np.loadtxt(self.data_file[0])
+                if len(Sig2obs_data.shape) > 1:
+                    Sig2obs_data = Sig2obs_data.T[0]
+                xiell_data = np.loadtxt(self.data_file[1])
+                data = np.concatenate((Sig2obs_data,xiell_data))
             else:
                 raise Exception("Expecting data_file to be list with [filename_Sig2obs,filename_xiell].")
         else:

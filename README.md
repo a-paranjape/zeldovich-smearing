@@ -15,17 +15,17 @@ A model-agnostic description of the baryon acoustic oscillation (BAO) feature in
 
 These ingredients have been developed by us in a series of recent papers. 
 
-This repository provides an implementation of the final **Zel'dovich smearing** model that brings these pieces together, as described by [Paranjape & Sheth (2026a)](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) (PS26a below) and [Paranjape & Sheth (2026b)](??) (PS26b below). 
+This repository provides an implementation of the final **Zel'dovich smearing** model that brings these pieces together, as described by [Paranjape & Sheth (2026a)](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) (PS26a below) and [Paranjape & Sheth (2026b)](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract) (PS26b below). 
 
 Additionally, we provide measurements of the relevant pairwise correlations and their expected covariance for the following tracer samples: 
-* Two $N$-body halo samples drawn from the [publicly available](https://abacussummit.readthedocs.io/en/latest/abacussummit.html) _AbacusSummit_ suite's baseline `c000` cosmology as described by [PS26b](??):
+* Two $N$-body halo samples drawn from the [publicly available](https://abacussummit.readthedocs.io/en/latest/abacussummit.html) _AbacusSummit_ suite's baseline `c000` cosmology as described by [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract):
   * _DESI-LRG2_ ($z=0.8$) mimicking luminous red galaxies (LRGs) being observed by the [DESI](https://ui.adsabs.harvard.edu/abs/2016arXiv161100036D/abstract) survey, 
   * _Euclid-ELG_ ($z=1.1$) mimicking H $\alpha$ emission line galaxies (ELGs) being observed by the [*Euclid*](https://ui.adsabs.harvard.edu/abs/2025A%26A...697A...1E/abstract) mission.
 * A toy sample mimicking DESI LRGs as described by [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract).
 
 We also provide the code we used to produce the measurements for the _DESI-LRG2_ and _Euclid-ELG_ halo samples.
 
-The code and data in this repository should be sufficient to reproduce all the main results of [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??). We have provided several *example notebooks* (described below) to implement the MCMC analysis and explore the theoretical model.
+The code and data in this repository should be sufficient to reproduce all the main results of [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract). We have provided several *example notebooks* (described below) to implement the MCMC analysis and explore the theoretical model.
 
 ## Dependencies
 * Python 3.9+, NumPy 2.0+
@@ -106,12 +106,12 @@ The source code is contained in the folder `code/` and is distributed across the
 * `paths.py`:\
   This is an auxiliary file that must be edited during [installation](#installation) and contains paths to various dependencies.
 
-[^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](??) for the original definitions of the quantities listed here.
+[^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract) for the original definitions of the quantities listed here.
 
 ## Data organization
 We provide several useful data sets in the folder `examples/data/`.
 
-These include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the _DESI-LRG2_ and _Euclid-ELG_ samples constructed using _AbacusSummit_ halos from [PS26b](??):
+These include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the _DESI-LRG2_ and _Euclid-ELG_ samples constructed using _AbacusSummit_ halos from [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract):
 * Redshift space multipoles $\ell=0,2,4$ of the tracer 2pcf $\xi^{(\ell)}\_{\rm obs}(s)$.
 * Redshift space multipoles $\ell=0,2,4$ of the tracer power spectrum $P^{(\ell)}\_{\rm obs}(k)$ for the _DESI-LRG2_ and _Euclid-ELG_ samples.
 * Integrals of the power spectrum multipoles over low $k$ bins $\Sigma^{(\ell)2}_{\rm obs}$.
@@ -125,11 +125,11 @@ In the folder `examples/` we provide a number of Jupyter notebooks.
 * `ZelSmear_Explore_Theory.ipynb`:\
   This notebook demonstrates the use of the theory routines using simple examples. There are step-by-step demonstrations for initializing the `TheoryManipulator` class, accessing file locations and default dictionaries, making a basic model prediction using `calc_model`, loading stored data, comparing data and model in plots and using $\chi^2$, accessing and plotting the ground truth linear 2pcf and (raw and smeared) basis functions and their derivatives, and finally producing 1-parameter variations around the stored best fit parameter vector (or any user-defined parameter vector) to study the impact of each parameter separately.    
 * `ZelSmear_MCMC_mpi.ipynb` and `ZelSmear_MCMC.ipynb`:\
-  These notebooks show how to use the model in an MCMC analysis. The notebook `ZelSmear_MCMC_mpi.ipynb` is constructed for use with MPI on a multi-core desktop (using 6 cores by default, which can be changed). This notebook was used to produce all the MCMC results and associated plots in [PS26b](??). The notebook `ZelSmear_MCMC.ipynb` is essentially a copy of `ZelSmear_MCMC_mpi.ipynb`, but is built to be used on a single processor, i.e. it will perform MCMC with a single chain and *can be run without MPI support*.
+  These notebooks show how to use the model in an MCMC analysis. The notebook `ZelSmear_MCMC_mpi.ipynb` is constructed for use with MPI on a multi-core desktop (using 6 cores by default, which can be changed). This notebook was used to produce all the MCMC results and associated plots in [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract). The notebook `ZelSmear_MCMC.ipynb` is essentially a copy of `ZelSmear_MCMC_mpi.ipynb`, but is built to be used on a single processor, i.e. it will perform MCMC with a single chain and *can be run without MPI support*.
 * `ZelSmear_QuickShow.ipynb`:\
   This is a convenience notebook to track the progress of MCMC chains while they run. The various variables should be set to match the choices made in `ZelSmear_MCMC_mpi.ipynb` or `ZelSmear_MCMC.ipynb`, as the case may be.
 * `Pairwise_Visualize_Abacus.ipynb`:\
-  This notebook visualizes the stored measurements of pairwise correlations in the _DESI-LRG2_ and _Euclid-ELG_ samples. It was used to generate some of the plots in [PS26b](??).
+  This notebook visualizes the stored measurements of pairwise correlations in the _DESI-LRG2_ and _Euclid-ELG_ samples. It was used to generate some of the plots in [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract).
 
 ## Citation
 If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file and the URL of this repository in your text or acknowledgments.
@@ -149,6 +149,22 @@ archivePrefix = {arXiv},
        eprint = {2602.14533},
  primaryClass = {astro-ph.CO},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+@ARTICLE{ps26b,
+       author = {{Paranjape}, Aseem and {Sheth}, Ravi K.},
+        title = "{Impact of fiducial cosmology in model-agnostic cosmological inference with the BAO feature}",
+      journal = {arXiv e-prints},
+     keywords = {Cosmology and Nongalactic Astrophysics},
+         year = 2026,
+        month = jun,
+          eid = {arXiv:2606.06591},
+        pages = {arXiv:2606.06591},
+archivePrefix = {arXiv},
+       eprint = {2606.06591},
+ primaryClass = {astro-ph.CO},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```

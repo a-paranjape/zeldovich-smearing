@@ -120,6 +120,12 @@ These include the following measurements for the toy model from [PS26a](https://
     
 For each measured quantity, the data set includes separate measurements from each realization (or 'phase') of the 25 available, along with plot-friendly files reporting the measurements and diagonal errors for the reference phase for each sample. The reference phases are `ph000` for _DESI-LRG2_ and `ph009` for _Euclid-ELG_. MCMC-friendly data files for the reference samples are also provided for use with `ZeldovichSmearingLike`.
 
+The data files for different samples are organized as follows.
+* _AbacusSummit_ samples: These are in `examples/data/AbacusSummit/base_c000/`, with the files for the two samples respectively placed in the sub-folders `DESI-LRG2/` and `Euclid-ELG/`. For legacy purposes, we have also provided some measurements for _DESI-LRG2_-like samples having a 3 times larger volume, in `examples/data/legacy/`.
+* Toy model: These are in `examples/data/SDBMC/`. 
+
+Plots visualizing these data sets can be found in correspondingly organized sub-folders of `examples/plots/`.
+
 ## Examples
 In the folder `examples/` we provide a number of Jupyter notebooks.
 * `ZelSmear_Explore_Theory.ipynb`:\

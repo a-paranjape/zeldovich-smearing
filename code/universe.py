@@ -449,7 +449,7 @@ class Cosmology(Constants,Utilities):
     ############################################################
     ############################################################
     def __init__(self,Om=0.3063,Ob=0.0484,Ok=0.0,hubble=0.6781,Tcmb=2.7255,
-                 wDE0=-1.0,sig8=0.815,As=None,kpivot=0.05,ns=0.9677,
+                 wDE0=-1.0,wDEa=0.0,sig8=0.815,As=None,kpivot=0.05,ns=0.9677,
                  N_ur=3.044,N_ncdm=0,m_ncdm=0.0,
                  verbose=True,logfile=None): 
         """ Initialise various constants. 
@@ -458,7 +458,7 @@ class Cosmology(Constants,Utilities):
             -- Ok : Curvature parameter
             -- hubble : little Hubble: H0 = 100h km/s/Mpc
             -- Tcmb : Current CMB temperature
-            -- wDE0 : Dark energy equation of state at z=0 (-1 for cosmological constant)
+            -- wDE0,wDEa : Dark energy equation of state at z=0 (-1,0 for cosmological constant)
             -- sig8: power spectrum normalisation sigma8
             -- As: power spectrum normalisation A_s. If not None, overrides sig8. 
                       In this case, self.sig8 will be set to actual value of sigma8.
@@ -525,6 +525,7 @@ class Cosmology(Constants,Utilities):
         self.hubble = hubble
         self.Tcmb = Tcmb
         self.wDE0 = wDE0
+        self.wDEa = wDEa
         self.sig8 = sig8
         self.As = As
         self.kpivot = kpivot
@@ -570,11 +571,12 @@ class Cosmology(Constants,Utilities):
                   'P_k_max_h/Mpc': kmax,
                   'z_pk': z_out
                   }
-        if np.fabs(self.wDE0 + 1) > self.NOTSOTINY:
+        if (np.fabs(self.wDE0 + 1) > self.NOTSOTINY) | (np.fabs(self.wDEa) > self.NOTSOTINY):
             if self.verbose:
                 self.print_this("... ... ... dark energy EoS w0 = {0:.3f}".format(self.wDE0),self.logfile)
             params['Omega_Lambda'] = 0 # force Omega_fld to be activated
             params['w0_fld'] = self.wDE0
+            params['wa_fld'] = self.wDEa
         if self.As is not None:
             params['A_s'] = self.As
             # include kpivot here
@@ -615,16 +617,16 @@ class Cosmology(Constants,Utilities):
         else:
             if self.verbose:
                 self.print_this("... using As normalisation",self.logfile)
-            if self.Pklin != 'class':
-                # normalise using
-                # k3Pdelta = D^2(a) (3/(5Om0))^2 (kc/H0)^4 T^2(k) * k3Pcurvprim
-                # assume T(kpivot) = 1 and set D(a)=1 since this is not included at this stage in above calculations
-                kph = self.kpivot/self.hubble
-                Dlin_pivot = np.interp(self.kpivot/self.hubble,self.ktab_lin,self.Dlin)
-                Dcurv_pivot = Dlin_pivot*(5*self.Om/3)**2/(kph*self.c_by_H0)**4
-                Amp = self.As/Dcurv_pivot
-                self.Dlin *= Amp
-                del Amp,kph,Dlin_pivot,Dcurv_pivot
+            # if self.Pklin != 'class':
+            #     # normalise using
+            #     # k3Pdelta = D^2(a) (3/(5Om0))^2 (kc/H0)^4 T^2(k) * k3Pcurvprim
+            #     # assume T(kpivot) = 1 and set D(a)=1 since this is not included at this stage in above calculations
+            #     kph = self.kpivot/self.hubble
+            #     Dlin_pivot = np.interp(self.kpivot/self.hubble,self.ktab_lin,self.Dlin)
+            #     Dcurv_pivot = Dlin_pivot*(5*self.Om/3)**2/(kph*self.c_by_H0)**4
+            #     Amp = self.As/Dcurv_pivot
+            #     self.Dlin *= Amp
+            #     del Amp,kph,Dlin_pivot,Dcurv_pivot
             self.sig8 = np.sqrt(np.trapezoid(self.Dlin*self.Wth(self.ktab_lin*8)**2,x=self.ln_ktab_lin))
             if self.verbose:
                 self.print_this("... ln(1e10*As),sig8 = {0:.3f},{1:.3f}".format(np.log(1e10*self.As),self.sig8),self.logfile)
@@ -899,7 +901,7 @@ class Cosmology(Constants,Utilities):
         if len(rtab.shape) != 1:
             raise TypeError("Only 1-d arrays supported for rtab in calc_xi_lin().")
 
-        if (rtab.max() > 150.0)  & (self.Pklin == 'class') & self.verbose:
+        if (rtab.max() > 150.0) & self.verbose:
             self.print_this("WARNING! xi_lin may be inaccurate for argument >~ 150Mpc/h: detected {0:.1f}Mpc/h"
                             .format(rtab.max()),self.logfile)
 

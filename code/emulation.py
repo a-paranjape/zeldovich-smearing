@@ -63,7 +63,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.rmin = setup.get('rmin',30.0)
         self.rmax = setup.get('rmax',150.0)
         self.n_r = setup.get('n_r',60)
-        self.rvals = np.linspace(self.rmin,self.rmin,self.n_r)
+        self.rvals = np.linspace(self.rmin,self.rmax,self.n_r)
         self.basis_func = self.evaluate_basis(self.rvals)
 
         # setup fiducial cosmology and param variation lists
@@ -203,21 +203,31 @@ class AgnosticEmulator(Utilities,MLUtilities):
                       If reading fails for one or more files, a fresh sample is generated and written out.
             -- include_fiducial: bool (default False), whether or not to include fiducial parameter vector in the sample 
                                  [e.g., useful to set to True for test sample]
+            -- save_xi: bool (default False), whether or not to store xilin(r) values [can be memory intensive]
+                        These will be written into xi_dir = self.out_stem + self.cosmo (+'_flat') + '/xilin/' + sample_stem
+                        in the file xi_dir/xilin.txt.
             Returns:
-            -- agnostic (self.n_basis,n_samp), cosmological (self.n_params,n_samp)
+            -- agnostic (self.n_basis,n_samp), cosmological (self.n_params,n_samp)[, xilin (n_samp,self.n_r), only if save_xi=True]
         """
         start_time = time()
+
+        # IN PROGRESS: implement save_xi functionality
         
         n_samp = sample_setup.get('n_samp',1)
         seed = sample_setup.get('seed',None)
         sample_stem = sample_setup.get('sample_stem','train')
         force = sample_setup.get('force',False)
         include_fiducial = sample_setup.get('include_fiducial',False)
+        save_xi = sample_setup.get('save_xi',False)
         
         flat_str = '_flat' if self.flat else ''
         out_dir = self.out_stem + self.cosmo + flat_str + '/samples/' + sample_stem # folder to write/read samples to/from
         file_agnostic = out_dir + '/agnostic.txt'
         file_cosmological = out_dir + '/cosmological.txt'
+
+        if save_xi:
+            xi_dir = self.out_stem + self.cosmo + flat_str + '/xilin/' + sample_stem # folder to write/read xilin to/from
+            file_xi = xi_dir + '/xilin.txt'
         
         if self.verbose:
             self.print_this('Generating/reading sample from :'+out_dir,self.logfile)
@@ -233,6 +243,8 @@ class AgnosticEmulator(Utilities,MLUtilities):
             else:
                 if self.verbose:
                     self.print_this('... read {0:d} samples'.format(agnostic.shape[1]),self.logfile)
+            if save_xi:
+                xilin = np.loadtxt(file_xi) if Path(file_xi).is_file() else None
         else:
             agnostic = None
             cosmological = None
@@ -241,16 +253,13 @@ class AgnosticEmulator(Utilities,MLUtilities):
             if self.verbose:
                 self.print_this('... generating and storing fresh sample',self.logfile)
             # either force is True or reading failed for one or more files
-            Path(out_dir).mkdir(parents=True,exist_ok=True) 
+            Path(out_dir).mkdir(parents=True,exist_ok=True)
+            if save_xi:
+                Path(xi_dir).mkdir(parents=True,exist_ok=True)
             rng = np.random.RandomState(seed)
 
             cosmological = self.gen_latin_hypercube(Nsamp=n_samp,dim=self.n_params,
                                                     param_mins=self.param_mins,param_maxs=self.param_maxs,rng=rng)
-            # if self.cosmo in self.neutrino_cosmologies:
-            #     ind_Nur = self.keys_vary.index('N_ur')
-            #     cosmological[:,ind_Nur] = 2.0328
-            #     ind_Nncdm = self.keys_vary.index('N_ncdm')
-            #     cosmological[:,ind_Nncdm] = 1
                 
             if include_fiducial:
                 if self.verbose:
@@ -263,7 +272,6 @@ class AgnosticEmulator(Utilities,MLUtilities):
             n_samp = cosmological.shape[0]
 
             xilin = np.zeros((n_samp,self.n_r)) # xi(r) values, possibly saved later
-            # LG_cov = np.zeros((self.n_basis,self.n_basis))
             agnostic = np.zeros((n_samp,self.n_basis))
             
             for n in range(n_samp):
@@ -288,8 +296,6 @@ class AgnosticEmulator(Utilities,MLUtilities):
                     Cinv = np.eye(self.n_r)
                     Fisher = np.dot(self.basis_func,np.dot(Cinv,self.basis_func.T)) # since F = M^T C^-1 M and M = basis_func
                     Finv,detF = self.svd_inv(Fisher,hermitian=True)
-                    # if n == 0:
-                    #     LG_cov += Finv 
                     agnostic[n] = np.dot(Finv,np.dot(self.basis_func,np.dot(Cinv,xilin[n]))) # ahat = F^-1 (M^T C^-1 y)            
                 except Exception:
                     agnostic[n] += np.nan
@@ -314,11 +320,16 @@ class AgnosticEmulator(Utilities,MLUtilities):
             if self.verbose:
                 self.print_this('... saving to file: '+file_cosmological,self.logfile)
             np.savetxt(file_cosmological,cosmological.T,fmt='%.8e')
+            
+            if save_xi:
+                if self.verbose:
+                    self.print_this('... saving to file: '+file_xi,self.logfile)
+                    np.savetxt(file_xi,xilin,fmt='%.8e')
 
         if self.verbose:
             self.time_this(start_time)    
-            
-        return agnostic,cosmological
+
+        return (agnostic,cosmological) if not save_xi else (agnostic,cosmological,xilin) 
     #############################################        
 
 
@@ -332,7 +343,7 @@ if __name__ == "__main__":
     # -- rmin,rmax: floats (default 30.0,150.0), min,max values in Mpc/h_fid for basis evaluation
     # -- n_r: int (default 60), number of scales for basis evaluation
     # -- verbose,logfile: usual I/O control variables
-    setup = {'out_stem':'temp/','cosmo':'nucdm','flat':True}
+    setup = {'out_stem':'temp/','cosmo':'wcdm','flat':False}
     agem = AgnosticEmulator(setup=setup)
     
     # -- n_samp: int (default 1), number of samples to produce. 
@@ -346,8 +357,25 @@ if __name__ == "__main__":
     #           If reading fails for one or more files, a fresh sample is generated and written out.
     # -- include_fiducial: bool (default False), whether or not to include fiducial parameter vector in the sample 
     #                      [e.g., useful to set to True for test sample]
-    sset = {'n_samp':5,'include_fiducial':True,'force':True}
+    # -- save_xi: bool (default False), whether or not to store xilin(r) values [can be memory intensive]
+    #             These will be written into xi_dir = self.out_stem + self.cosmo (+'_flat') + '/xilin/' + sample_stem
+    #             in the files xi_dir/xilin.txt
+    sset = {'n_samp':15,'include_fiducial':True,'save_xi':True,'force':False}
     
-    agnostic,cosmological = agem.gen_sample(sample_setup=sset)
-    print('agnostic.shape:',agnostic.shape,'; expected: ({0:d},{1:d})'.format(agem.n_basis,sset['n_samp']+int(sset['include_fiducial'])))
-    print('cosmological.shape:',cosmological.shape,'; expected: ({0:d},{1:d})'.format(agem.n_params,sset['n_samp']+int(sset['include_fiducial'])))
+    out = agem.gen_sample(sample_setup=sset)
+    if sset['save_xi']:
+        agnostic,cosmological,xilin = out
+    else:
+        agnostic,cosmological = out
+    n_samp_exp = sset['n_samp']+int(sset['include_fiducial'])
+    print('agnostic.shape:',agnostic.shape,'; expected: ({0:d},{1:d})'.format(agem.n_basis,n_samp_exp))
+    print('cosmological.shape:',cosmological.shape,'; expected: ({0:d},{1:d})'.format(agem.n_params,n_samp_exp))
+    if sset['save_xi'] & (xilin is not None):
+        print('xilin.shape:',xilin.shape,'; expected: ({0:d},{1:d})'.format(n_samp_exp,agem.n_r))
+
+        import matplotlib.pyplot as plt
+        
+        plt.figure(figsize=(4,4))
+        for n in range(np.min([10,n_samp_exp])):
+            plt.plot(agem.rvals,agem.rvals**2*xilin[n],'-',lw=0.5)
+        plt.show()

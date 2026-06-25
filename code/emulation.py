@@ -330,7 +330,126 @@ class AgnosticEmulator(Utilities,MLUtilities):
         return (agnostic,cosmological) if not save_xi else (agnostic,cosmological,xilin) 
     #############################################        
 
+    #############################################
+    def emulate(self,agnostic,cosmological,invert=True,setup_hopt={},optimize=True):
+        """ Wrapper around HyperOpt.optimize.
+            -- agnostic,cosmological: mutually consistent outputs of self.gen_sample.
+            -- invert: bool (default True), whether to construct forward or inverse emulator 
+                       True : forward emulator, with (input=cosmological, output=agnostic)
+                       False: inverse emulator, with (input=agnostic,output=cosmological)
+            -- setup_hopt: setup dictionary to instantiate HyperOpt, with keys being a subset of following
+                           [defaults below are same as in HyperOpt source code]
+                ------------
+                :: mandatory
+                ------------
+                -- theta_dim: int; dimensionality of parameter space in BiSequential (not needed for other network families)
+                ------------
+                :: optional
+                ------------
+                -- family: str [default 'seq']; one of 'seq' (Sequential), 'biseq' (BiSequential), 'gan' (GAN)
+                -- model_name: str [defaults to family]; unique name for model (e.g., 'inverse_wide','forward_telescopic', or anything else)
+                               model will be stored in the folder self.out_stem + self.cosmo [+'_flat'] + '/models/' + model_name
+                ------
+                :: :: training sample
+                ------
+                -- train_frac: float (default 0.8); fraction of input samples to use for training+validation, 
+                               remaining used for hyperparam/architecture comparison.
+                -- val_frac: float (default 0.2); fraction of train_frac to use for early-stopping validation. 
+                             Set to zero to switch off validation check. 
+                ------
+                :: :: training setup
+                ------
+                -- standardize_X: bool (default True); whether or not to standardize features.
+                -- standardize_Y: bool (default True); whether or not to standardize labels.
+                -- max_epoch: int (default 1000000); maximum number of training epochs
+                -- check_after: int (default 300); epoch after which to activate validation (early stopping) checks. 
+                                To swith off early stopping, set >= max_epoch.
+                -- decay_norm: int (default 2); value of norm for weight decay, either 1 or 2.
+                -- test_type: str (default 'perc'); one of 'perc' (residual percentiles) or 'mse' (mean squared error),
+                              relevant for regression (square/hinge loss).
+                -- seed: int or None (default); seed for random number generation. 
 
+                -- n_iter: int (default 3); number of iterations for each choice of hyperparams + architecture
+                -- max_config: int (default 10); total number of distinct configurations to search over.
+                   ** Note: ** Total number of networks trained will be (n_iter * max_config)
+
+                -- ensemble: bool (default False); whether or not to use ensemble of networks.
+                -- ensemble_size: int (default 5); number of top networks to use in ensemble. Should not be larger than max_config. 
+                                  (Only used if ensemble is True.)
+                -- parallel: bool (default False); whether or not to parallelize analysis of each configuration. (CURRENTLY REDUNDANT.)
+                -- nproc: int (default 4); number of concurrent processes to spawn. 
+                -- fixed_width: bool or None (default True)
+                                True : each layer l has the same width W_l = W sampled from the range
+                                False: each layer l has a width W_l sampled independently from the range
+                                None: layer widths telescope from data dim to sampled W (similar to 'autoenc' behaviour of BuildNN)
+                -- fixed_htype: bool (default True)
+                                True : each layer l has the same activation A_l = A sampled from the htypes list
+                                False: each layer l has an activation A_l sampled independently from the htypes list
+                ------
+                :: :: sampled parameters
+                ------
+                -- layers: range for number of layers
+                           dict with structure 
+                           {'min': int (default 1), 'max': int (default 3)}
+                -- widths: range for layer width
+                           dict with structure 
+                           {'min': int (default 2), 'max': int (default 2)}
+                -- lglrates: range for log10(learning rate)
+                             dict with structure 
+                             {'min': float (default -2.0), 'max': float (default -1.0)}
+                -- wt_decays: range for weight decay
+                              dict with structure 
+                              {'min': float (default 0.0), 'max': float (default 0.0)} [default is no weight decay]
+                -- htypes: None (default) or list; hidden activation types (will be randomly sampled). 
+                           None will default to ['relu','tanh'].
+                           If not None, expect subset of ['tanh','relu','lrelu','splus','sin','requ']. 
+                -- lrelu_slopes: None (default) or range for slopes of LReLU
+                                 If not None, expect dict with structure 
+                                 {'min': float (e.g., -1e-2), 'max': float (e.g., 1e-2)}
+                                 None will default to 1e-2.
+                -- reg_funs: None (default) or list; regularization function types (will be randomly sampled). 
+                             None will default to ['none'].
+                             If not None, expect subset of ['bn','drop','none']. 
+                -- p_drops: None (default) or range for drop probabilities (only needed if reg_funs contains 'drop')
+                            If not None, expect dict with structure 
+                            {'min': float (e.g., 0.4), 'max': float (e.g., 0.6)}
+                            None will default to 0.5.
+                ------
+            -- optimize: bool (default True). 
+                         If True, run HyperOpt.optimize to train network (ensemble).
+                         If False, run HyperOpt.load to load existing network (ensemble).
+            Returns loaded instance of network / NetworkEnsembleObject.
+        """
+        setup_dict = copy.deepcopy(setup_hopt)
+
+        setup_dict['X'] = cosmological if invert else agnostic
+        setup_dict['Y'] = agnostic if invert else cosmological
+
+        family = setup_dict.get('family','seq')
+        setup_dict['family'] = family
+        model_name = setup_dict.get('model_name',family)
+        setup_dict['model_name'] = model_name
+        
+        flat_str = '_flat' if self.flat else ''
+        setup_dict['file_stem'] = self.out_stem + self.cosmo + flat_str + '/models/' + model_name # folder to write/read samples to/from
+
+        setup_dict['loss_type'] = 'square'
+        
+        setup_dict['verbose'] = self.verbose
+        setup_dict['logfile'] = self.logfile
+        
+        hopt = HyperOpt(setup_dict=setup_dict)
+
+        if optimize:
+            model = hopt.optimize()
+        else:
+            model = hopt.load()
+        return model
+    #############################################
+#################################################
+
+
+#################################################
 if __name__ == "__main__":
 
     # -- out_stem: str (default './'), path/of/folder/ where all outputs [samples and trained models] will be written 
@@ -358,16 +477,18 @@ if __name__ == "__main__":
     # -- save_xi: bool (default False), whether or not to store xilin(r) values [can be memory intensive]
     #             These will be written into xi_dir = self.out_stem + self.cosmo (+'_flat') + '/xilin/' + sample_stem
     #             in the files xi_dir/xilin.txt
-    sset = {'n_samp':15,'include_fiducial':True,'save_xi':True,'force':False}
+    sset = {'n_samp':20,'include_fiducial':True,'save_xi':False,'force':False}
     
     out = agem.gen_sample(sample_setup=sset)
     if sset['save_xi']:
         agnostic,cosmological,xilin = out
     else:
         agnostic,cosmological = out
+        
     n_samp_exp = sset['n_samp']+int(sset['include_fiducial'])
     print('agnostic.shape:',agnostic.shape,'; expected: ({0:d},{1:d})'.format(agem.n_basis,n_samp_exp))
     print('cosmological.shape:',cosmological.shape,'; expected: ({0:d},{1:d})'.format(agem.n_params,n_samp_exp))
+    
     if sset['save_xi'] & (xilin is not None):
         print('xilin.shape:',xilin.shape,'; expected: ({0:d},{1:d})'.format(n_samp_exp,agem.n_r))
 
@@ -377,3 +498,7 @@ if __name__ == "__main__":
         for n in range(np.min([10,n_samp_exp])):
             plt.plot(agem.rvals,agem.rvals**2*xilin[n],'-',lw=0.5)
         plt.show()
+
+    setup_hopt = {'ensemble':True,
+                  'max_epoch':10,'check_after':10,'n_iter':1,'max_config':3}
+#################################################

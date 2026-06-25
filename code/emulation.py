@@ -210,8 +210,6 @@ class AgnosticEmulator(Utilities,MLUtilities):
             -- agnostic (self.n_basis,n_samp), cosmological (self.n_params,n_samp)[, xilin (n_samp,self.n_r), only if save_xi=True]
         """
         start_time = time()
-
-        # IN PROGRESS: implement save_xi functionality
         
         n_samp = sample_setup.get('n_samp',1)
         seed = sample_setup.get('seed',None)

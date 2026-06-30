@@ -1308,7 +1308,7 @@ class Cosmology(Constants,Utilities):
              Normalized to be 1/(1+z) in matter domination.
         """
         a = 1.0/(1+z)
-        if (np.fabs(self.Ok) <= self.NOTSOTINY) & (np.fabs(1+self.wDE0) <= self.NOTSOTINY): 
+        if self.FLAT & (np.fabs(1+self.wDE0) <= self.NOTSOTINY): 
             acube = a**3
             hbyh0 = self.EHub(z)
             g = hbyh0/np.sqrt(self.Om)*a**2.5*sysp.hyp2f1(5.0/6,1.5,11.0/6,-acube*(1.0/self.Om-1))
@@ -1327,14 +1327,18 @@ class Cosmology(Constants,Utilities):
     def fGrowth(self,z=0):
         """ LCDM growth function derivative f(z) = dlnD/dlna.
         """
-
-        if np.fabs(self.Ok) > self.NOTSOTINY: 
-            self.print_this("WARNING: Growth() needs to be modified!!",self.logfile)
-
         a = 1.0/(1+z)
         acube = a**3
         hbyh0 = self.EHub(z)
-        dlnHdlna = -1.5/(1+acube*(1/self.Om-1))
+
+        if self.FLAT & (np.fabs(1+self.wDE0) <= self.NOTSOTINY): 
+            dlnHdlna = -1.5/(1+acube*(1/self.Om-1))
+        else:
+            OkbyOm = self.Ok/self.Om
+            OLambyOm = self.OLam/self.Om
+            aw = 1/acube**self.wDE0
+            dlnHdlna = -(1.5 + OkbyOm*a + 1.5*OLambyOm*(1+self.wDE0)*aw)
+            dlnHdlna /= (1 + OkbyOm*a + OLambyOm*aw)
 
         f = dlnHdlna + 2.5*self.Om/self.Growth(z)/(a*hbyh0)**2
 

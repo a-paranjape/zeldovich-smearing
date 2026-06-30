@@ -27,12 +27,15 @@ class AgnosticEmulator(Utilities,MLUtilities):
             -- out_stem: str (default './'), path/of/folder/ where all outputs [samples and trained models] will be written 
             -- cosmo: str, base cosmology to sample from, one of ['lcdm','wcdm'(default),'w0wacdm','nucdm']
                       Note: 'nucdm' currently will only vary the mass of a single neutrino species.
+            -- z_eval: float >= 0.0 (default 0.0), evaluation redshift.
             -- flat: bool, whether or not to consider only spatially flat cosmologies. 
                      If False (default), Omega_k will be sampled, else will set Omega_k=0.
             -- perc: float in (0,1) (default 0.1), percentage variations around fiducial values for each parameter.
             -- rmin,rmax: floats (default 30.0,150.0), min,max values in Mpc/h_fid for basis evaluation
             -- n_r: int (default 60), number of scales for basis evaluation
             -- mnu_max: float (default 0.3), maximum neutrino mass in eV [only relevant if cosmo=='nucdm']
+            -- kmin,kmax: floats (default 0.02,0.05), min,max values in h_fid/Mpc for fv evaluation
+            -- high_acc: bool (default True), control accuracy of k-space integrals
             -- verbose,logfile: usual I/O control variables
         """
         Utilities.__init__(self)
@@ -43,6 +46,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         
         self.out_stem = setup.get('out_stem','./')
         self.cosmo = setup.get('cosmo','wcdm')
+        self.z_eval = setup.get('z_eval',0.0)
         self.flat = setup.get('flat',False)
         self.perc = setup.get('perc',0.1)
         self.mnu_max = setup.get('mnu_max',0.3) if self.cosmo in self.neutrino_cosmologies else None
@@ -57,7 +61,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         
         # BiSequential basis setup
         self.basis_stem = Basis_Stem
-        self.load_basis()
+        self.load_basis() # sets self.binet,self.basis,self.n_basis
 
         # evaluate basis functions
         self.rmin = setup.get('rmin',30.0)
@@ -66,8 +70,27 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.rvals = np.linspace(self.rmin,self.rmax,self.n_r)
         self.basis_func = self.evaluate_basis(self.rvals)
 
+        self.n_agnostic = self.n_basis + 4 # (9) basis coeffs + f,sigv,DaAP,fv ( = 13)
+        
         # setup fiducial cosmology and param variation lists
         self.setup_fiducial_cosmology()
+
+        # fiducial distances for DaAP calculation (nominally in Mpc/h_fid)
+        self.d_Hub_fid = self.co_fid.EHub_inv(self.z_eval) # physical Hubble distance
+        self.d_Ang_com_fid = self.co_fid.rCom(self.z_eval) # comoving angular diameter distance
+        
+        # k-space setup
+        # .. min/max values for fv evaluation from PS26a,b.
+        self.kmin = setup.get('kmin',0.02)
+        self.kmax = setup.get('kmax',0.05)
+
+        # .. arrays for sigv,fv evaluation
+        self.high_acc = setup.get('high_acc',True)
+        self.nk_int = 15000 if self.high_acc else 1500 # 50000 
+        self.ktab_int = np.logspace(np.log10(self.co_fid.ktab_lin.min()),np.log10(self.co_fid.ktab_lin.max()),self.nk_int)
+        self.dlnk_int = np.log(self.ktab_int[1]/self.ktab_int[0])
+        self.k3by2pi2 = self.ktab_int**3/(2*np.pi**2)
+        self.cond_k = (self.ktab_int <= self.kmax) & (self.ktab_int >= self.kmin)
         
         if self.verbose:
             self.print_this('... setup complete',self.logfile)
@@ -268,9 +291,8 @@ class AgnosticEmulator(Utilities,MLUtilities):
                 cosmological = np.concatenate((cosmological,self.rv(values_fid)),axis=0)
             # LHC sample of shape (n_samp,self.n_params), with axis 1 ordered by self.keys_vary
             n_samp = cosmological.shape[0]
-
             xilin = np.zeros((n_samp,self.n_r)) # xi(r) values, possibly saved later
-            agnostic = np.zeros((n_samp,self.n_basis))
+            agnostic = np.zeros((n_samp,self.n_agnostic))
             
             for n in range(n_samp):
                 pdict = copy.deepcopy(self.pfid) # copy of full dictionary
@@ -290,17 +312,19 @@ class AgnosticEmulator(Utilities,MLUtilities):
                                    Ok=pdict['Ok'],wDE0=pdict['w0'],wDEa=pdict['wa'],
                                    N_ur=pdict['N_ur'],N_ncdm=pdict['N_ncdm'],m_ncdm=pdict['m_ncdm'],verbose=False)
                     xilin[n] = co.calc_xi_lin(self.rvals*pdict['h']/self.pfid['h']) # use Mpc/h in varied cosmology
-                    
-                    Cinv = np.eye(self.n_r)
-                    Fisher = np.dot(self.basis_func,np.dot(Cinv,self.basis_func.T)) # since F = M^T C^-1 M and M = basis_func
-                    Finv,detF = self.svd_inv(Fisher,hermitian=True)
-                    agnostic[n] = np.dot(Finv,np.dot(self.basis_func,np.dot(Cinv,xilin[n]))) # ahat = F^-1 (M^T C^-1 y)            
+
+                    agnostic[n,:self.n_basis] = self.calc_basiscoeffs(xilin[n])
+                    # Cinv = np.eye(self.n_r)
+                    # Fisher = np.dot(self.basis_func,np.dot(Cinv,self.basis_func.T)) # since F = M^T C^-1 M and M = basis_func
+                    # Finv,detF = self.svd_inv(Fisher,hermitian=True)
+                    # agnostic[n,:self.n_basis] = np.dot(Finv,np.dot(self.basis_func,np.dot(Cinv,xilin[n]))) # ahat = F^-1 (M^T C^-1 y)
+                    agnostic[n,self.n_basis:] = self.calc_others(co)
                 except Exception:
                     agnostic[n] += np.nan
                 if self.verbose:
                     self.status_bar(n,n_samp)
 
-            agnostic = agnostic.T # (self.n_basis,n_samp)
+            agnostic = agnostic.T # (self.n_agnostic,n_samp)
             cosmological = cosmological.T # (self.n_params,n_samp)
 
             condfin = np.isfinite(agnostic) 
@@ -330,6 +354,54 @@ class AgnosticEmulator(Utilities,MLUtilities):
         return (agnostic,cosmological) if not save_xi else (agnostic,cosmological,xilin) 
     #############################################        
 
+    #############################################        
+    def calc_basiscoeffs(self,xilin):
+        """ Least squares fit to input function (linear 2pcf) using self.basis_func.
+            Expect xilin to be array of shape (self.n_r,).
+            Returns array of shape (self.n_basis,)
+        """
+        Cinv = np.eye(self.n_r)
+        Fisher = np.dot(self.basis_func,np.dot(Cinv,self.basis_func.T)) # since F = M^T C^-1 M and M = basis_func
+        Finv,detF = self.svd_inv(Fisher,hermitian=True)
+        coeffs = np.dot(Finv,np.dot(self.basis_func,np.dot(Cinv,xilin))) # ahat = F^-1 (M^T C^-1 y)
+        return coeffs
+    #############################################
+
+    #############################################
+    def calc_others(self,co):
+        """ Calculate cosmological parameters other than basis coeffs, namely f,sigv,DaAP,fv at evaluation redshift.
+            -- co: instance of Cosmology
+            Returns array of shape (4,).
+        """
+        growth = co.Growth(self.z_eval)/co.Growth(0.0)
+        f = co.fGrowth(z=self.z_eval)
+
+        # growth will be included later in sigv
+        Dlin_int = np.interp(self.ktab_int,co.ktab_lin,co.Dlin)
+        sigv2 = np.trapezoid(Dlin_int/self.ktab_int**2,dx=self.dlnk_int)/3.0
+        sigv2_frac = np.trapezoid(Dlin_int[self.cond_k]/self.ktab_int[self.cond_k]**2,dx=self.dlnk_int)/3.0
+
+        sigv = growth*np.sqrt(sigv2)
+        fv = sigv2_frac/(sigv2 + co.TINY)
+
+        # distances (nominally in Mpc/h)
+        d_Hub = co.EHub_inv(self.z_eval) # physical Hubble distance
+        d_Ang_com = co.rCom(self.z_eval) # comoving angular diameter distance
+
+        alpha_par = self.d_Hub_fid/d_Hub
+        alpha_perp = self.d_Ang_com_fid/d_Ang_com
+        # nominally, ratios of (Mpc/h_fid) with (Mpc/h), but h/h_fid not accounted for
+
+        alpha_AP = alpha_perp/alpha_par # so h/h_fid dependence cancels
+        DaAP = alpha_AP - 1.0
+        
+        Dlin_int = None
+
+        out = np.array([f,sigv,DaAP,fv])
+        
+        return out
+    #############################################
+
     #############################################
     def emulate(self,agnostic,cosmological,invert=True,setup_hopt={},optimize=True):
         """ Wrapper around HyperOpt.optimize.
@@ -347,8 +419,10 @@ class AgnosticEmulator(Utilities,MLUtilities):
                 :: optional
                 ------------
                 -- family: str [default 'seq']; one of 'seq' (Sequential), 'biseq' (BiSequential), 'gan' (GAN)
-                -- model_name: str [defaults to family]; unique name for model (e.g., 'inverse_wide','forward_telescopic', or anything else)
-                               model will be stored in the folder self.out_stem + self.cosmo [+'_flat'] + '/models/' + model_name
+                -- model_name: str [defaults to family]; unique name for model (e.g., 'wide','telescopic', or anything else)
+                               model will be stored in the folder 
+                               self.out_stem + self.cosmo [+'_flat'] + '/models/' + model_name + inv_str
+                               where inv_str = '_inverse' if invert else '_forward'
                 ------
                 :: :: training sample
                 ------
@@ -373,7 +447,6 @@ class AgnosticEmulator(Utilities,MLUtilities):
                 -- max_config: int (default 10); total number of distinct configurations to search over.
                    ** Note: ** Total number of networks trained will be (n_iter * max_config)
 
-                -- ensemble: bool (default False); whether or not to use ensemble of networks.
                 -- ensemble_size: int (default 5); number of top networks to use in ensemble. Should not be larger than max_config. 
                                   (Only used if ensemble is True.)
                 -- parallel: bool (default False); whether or not to parallelize analysis of each configuration. (CURRENTLY REDUNDANT.)
@@ -381,7 +454,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
                 -- fixed_width: bool or None (default True)
                                 True : each layer l has the same width W_l = W sampled from the range
                                 False: each layer l has a width W_l sampled independently from the range
-                                None: layer widths telescope from data dim to sampled W (similar to 'autoenc' behaviour of BuildNN)
+                                None: layer widths telescope from data dim to sampled W
                 -- fixed_htype: bool (default True)
                                 True : each layer l has the same activation A_l = A sampled from the htypes list
                                 False: each layer l has an activation A_l sampled independently from the htypes list
@@ -416,10 +489,21 @@ class AgnosticEmulator(Utilities,MLUtilities):
                             None will default to 0.5.
                 ------
             -- optimize: bool (default True). 
-                         If True, run HyperOpt.optimize to train network (ensemble).
-                         If False, run HyperOpt.load to load existing network (ensemble).
-            Returns loaded instance of network / NetworkEnsembleObject.
+                         If True, run HyperOpt.optimize to train network ensemble.
+                         If False, run HyperOpt.load to load existing network ensemble.
+            ***
+            NOTE: To train a single network rather than an ensemble, do the following:
+                  (i)   set min/max of hyperparam ranges to the same value,
+                  (ii)  set discrete hyperparam lists to have single elements
+                  (iii) set n_iter = 1
+                  (iv)  set max_config = 1
+            ***
+            Returns loaded instance of NetworkEnsembleObject.
         """
+        inv_str = '_inverse' if invert else '_forward'
+        if self.verbose:
+            self.print_this("Emulating "+inv_str[1:]+" mapping...",self.logfile)
+            
         setup_dict = copy.deepcopy(setup_hopt)
 
         setup_dict['X'] = cosmological if invert else agnostic
@@ -431,9 +515,10 @@ class AgnosticEmulator(Utilities,MLUtilities):
         setup_dict['model_name'] = model_name
         
         flat_str = '_flat' if self.flat else ''
-        setup_dict['file_stem'] = self.out_stem + self.cosmo + flat_str + '/models/' + model_name # folder to write/read samples to/from
+        setup_dict['file_stem'] = self.out_stem + self.cosmo + flat_str + '/models/' + model_name + inv_str # folder to write/read samples to/from
 
         setup_dict['loss_type'] = 'square'
+        setup_dict['ensemble'] = True
         
         setup_dict['verbose'] = self.verbose
         setup_dict['logfile'] = self.logfile
@@ -454,13 +539,17 @@ if __name__ == "__main__":
 
     # -- out_stem: str (default './'), path/of/folder/ where all outputs [samples and trained models] will be written 
     # -- cosmo: str, base cosmology to sample from, one of ['lcdm','wcdm'(default),'nucdm']
+    # -- z_eval: float >= 0.0 (default 0.0), evaluation redshift.
     # -- flat: bool, whether or not to consider only spatially flat cosmologies. 
     #          If False (default), Omega_k will be sampled, else will set Omega_k=0.
     # -- perc: float in (0,1) (default 0.1), percentage variations around fiducial values for each parameter.
     # -- rmin,rmax: floats (default 30.0,150.0), min,max values in Mpc/h_fid for basis evaluation
     # -- n_r: int (default 60), number of scales for basis evaluation
+    # -- mnu_max: float (default 0.3), maximum neutrino mass in eV [only relevant if cosmo=='nucdm']
+    # -- kmin,kmax: floats (default 0.02,0.05), min,max values in h_fid/Mpc for fv evaluation
+    # -- high_acc: bool (default True), control accuracy of k-space integrals
     # -- verbose,logfile: usual I/O control variables
-    setup = {'out_stem':'temp/','cosmo':'wcdm','flat':False}
+    setup = {'out_stem':'temp/','z_eval':0.8,'cosmo':'wcdm','flat':False}
     agem = AgnosticEmulator(setup=setup)
     
     # -- n_samp: int (default 1), number of samples to produce. 
@@ -477,28 +566,140 @@ if __name__ == "__main__":
     # -- save_xi: bool (default False), whether or not to store xilin(r) values [can be memory intensive]
     #             These will be written into xi_dir = self.out_stem + self.cosmo (+'_flat') + '/xilin/' + sample_stem
     #             in the files xi_dir/xilin.txt
-    sset = {'n_samp':20,'include_fiducial':True,'save_xi':False,'force':False}
+    sset = {'n_samp':199,'include_fiducial':True,'save_xi':False,'force':False}
     
     out = agem.gen_sample(sample_setup=sset)
     if sset['save_xi']:
         agnostic,cosmological,xilin = out
     else:
         agnostic,cosmological = out
+        xilin = None
         
     n_samp_exp = sset['n_samp']+int(sset['include_fiducial'])
-    print('agnostic.shape:',agnostic.shape,'; expected: ({0:d},{1:d})'.format(agem.n_basis,n_samp_exp))
+    print('agnostic.shape:',agnostic.shape,'; expected: ({0:d},{1:d})'.format(agem.n_agnostic,n_samp_exp))
     print('cosmological.shape:',cosmological.shape,'; expected: ({0:d},{1:d})'.format(agem.n_params,n_samp_exp))
     
     if sset['save_xi'] & (xilin is not None):
         print('xilin.shape:',xilin.shape,'; expected: ({0:d},{1:d})'.format(n_samp_exp,agem.n_r))
-
+        predicted = np.dot(agem.basis_func.T,agnostic[:agem.n_basis]).T
         import matplotlib.pyplot as plt
         
         plt.figure(figsize=(4,4))
         for n in range(np.min([10,n_samp_exp])):
-            plt.plot(agem.rvals,agem.rvals**2*xilin[n],'-',lw=0.5)
+            plt.plot(agem.rvals,agem.rvals**2*xilin[n],'k-',lw=0.5)
+            plt.plot(agem.rvals,agem.rvals**2*predicted[n],'r--',lw=1)
         plt.show()
 
-    setup_hopt = {'ensemble':True,
-                  'max_epoch':10,'check_after':10,'n_iter':1,'max_config':3}
+
+    # -- setup_hopt: setup dictionary to instantiate HyperOpt, with keys being a subset of following
+    #                [defaults below are same as in HyperOpt source code]
+    #     ------------
+    #     :: mandatory
+    #     ------------
+    #     -- theta_dim: int; dimensionality of parameter space in BiSequential (not needed for other network families)
+    #     ------------
+    #     :: optional
+    #     ------------
+    #     -- family: str [default 'seq']; one of 'seq' (Sequential), 'biseq' (BiSequential), 'gan' (GAN)
+    #     -- model_name: str [defaults to family]; unique name for model (e.g., 'inverse_wide','forward_telescopic', or anything else)
+    #                    model will be stored in the folder self.out_stem + self.cosmo [+'_flat'] + '/models/' + model_name
+    #     ------
+    #     :: :: training sample
+    #     ------
+    #     -- train_frac: float (default 0.8); fraction of input samples to use for training+validation, 
+    #                    remaining used for hyperparam/architecture comparison.
+    #     -- val_frac: float (default 0.2); fraction of train_frac to use for early-stopping validation. 
+    #                  Set to zero to switch off validation check. 
+    #     ------
+    #     :: :: training setup
+    #     ------
+    #     -- standardize_X: bool (default True); whether or not to standardize features.
+    #     -- standardize_Y: bool (default True); whether or not to standardize labels.
+    #     -- max_epoch: int (default 1000000); maximum number of training epochs
+    #     -- check_after: int (default 300); epoch after which to activate validation (early stopping) checks. 
+    #                     To swith off early stopping, set >= max_epoch.
+    #     -- decay_norm: int (default 2); value of norm for weight decay, either 1 or 2.
+    #     -- test_type: str (default 'perc'); one of 'perc' (residual percentiles) or 'mse' (mean squared error),
+    #                   relevant for regression (square/hinge loss).
+    #     -- seed: int or None (default); seed for random number generation. 
+    #     -- n_iter: int (default 3); number of iterations for each choice of hyperparams + architecture
+    #     -- max_config: int (default 10); total number of distinct configurations to search over.
+    #        ** Note: ** Total number of networks trained will be (n_iter * max_config)
+    #     -- ensemble_size: int (default 5); number of top networks to use in ensemble. Should not be larger than max_config. 
+    #                       (Only used if ensemble is True.)
+    #     -- parallel: bool (default False); whether or not to parallelize analysis of each configuration. (CURRENTLY REDUNDANT.)
+    #     -- nproc: int (default 4); number of concurrent processes to spawn. 
+    #     -- fixed_width: bool or None (default True)
+    #                     True : each layer l has the same width W_l = W sampled from the range
+    #                     False: each layer l has a width W_l sampled independently from the range
+    #                     None: layer widths telescope from data dim to sampled W
+    #     -- fixed_htype: bool (default True)
+    #                     True : each layer l has the same activation A_l = A sampled from the htypes list
+    #                     False: each layer l has an activation A_l sampled independently from the htypes list
+    #     ------
+    #     :: :: sampled parameters
+    #     ------
+    #     -- layers: range for number of layers
+    #                dict with structure 
+    #                {'min': int (default 1), 'max': int (default 3)}
+    #     -- widths: range for layer width
+    #                dict with structure 
+    #                {'min': int (default 2), 'max': int (default 2)}
+    #     -- lglrates: range for log10(learning rate)
+    #                  dict with structure 
+    #                  {'min': float (default -2.0), 'max': float (default -1.0)}
+    #     -- wt_decays: range for weight decay
+    #                   dict with structure 
+    #                   {'min': float (default 0.0), 'max': float (default 0.0)} [default is no weight decay]
+    #     -- htypes: None (default) or list; hidden activation types (will be randomly sampled). 
+    #                None will default to ['relu','tanh'].
+    #                If not None, expect subset of ['tanh','relu','lrelu','splus','sin','requ']. 
+    #     -- lrelu_slopes: None (default) or range for slopes of LReLU
+    #                      If not None, expect dict with structure 
+    #                      {'min': float (e.g., -1e-2), 'max': float (e.g., 1e-2)}
+    #                      None will default to 1e-2.
+    #     -- reg_funs: None (default) or list; regularization function types (will be randomly sampled). 
+    #                  None will default to ['none'].
+    #                  If not None, expect subset of ['bn','drop','none']. 
+    #     -- p_drops: None (default) or range for drop probabilities (only needed if reg_funs contains 'drop')
+    #                 If not None, expect dict with structure 
+    #                 {'min': float (e.g., 0.4), 'max': float (e.g., 0.6)}
+    #                 None will default to 0.5.
+    #     ------
+    # ***
+    # NOTE: To train a single network rather than an ensemble, do the following:
+    #       (i)   set min/max of hyperparam ranges to the same value,
+    #       (ii)  set discrete hyperparam lists to have single elements
+    #       (iii) set n_iter = 1
+    #       (iv)  set max_config = 1
+    # ***
+        
+    setup_hopt = {'max_epoch':1000,'check_after':300,'n_iter':3,'max_config':50,
+                  'train_frac':0.9,'val_frac':0.1,
+                  'model_name':'test',
+                  'layers':{'min':2,'max':4},
+                  'widths':{'min':5,'max':15},
+                  'lglrates':{'min':-3.0,'max':-2.0},
+                  'wt_decays':{'min':0.0,'max':0.05},
+                  'htypes':['relu','tanh','splus'],
+                  'fixed_width':False,'fixed_htype':False}
+    
+    # -- agnostic,cosmological: mutually consistent outputs of self.gen_sample.
+    # -- invert: bool (default True), whether to construct forward or inverse emulator 
+    #            True : forward emulator, with (input=cosmological, output=agnostic)
+    #            False: inverse emulator, with (input=agnostic,output=cosmological)
+    # -- optimize: bool (default True). 
+    #              If True, run HyperOpt.optimize to train network ensemble.
+    #              If False, run HyperOpt.load to load existing network ensemble.
+
+    start_time = time()
+    neo_fwd = agem.emulate(agnostic,cosmological,invert=False,setup_hopt=setup_hopt,optimize=True)
+    neo_fwd.display_summary()
+    agem.time_this(start_time)
+
+    start_time = time()
+    neo_inv = agem.emulate(agnostic,cosmological,invert=True,setup_hopt=setup_hopt,optimize=True)
+    neo_inv.display_summary()
+    agem.time_this(start_time)
+    
 #################################################

@@ -727,9 +727,9 @@ class ZeldovichSmearingTheory(Theory,Utilities):
             xiNL,xiNL_der = self.calc_xiNL(params_dict) # (L_Max,s)
             # Daiso = params_dict['Daiso']
             DaAP = params_dict['DaAP']
-            temp = (2/3.)*np.dot(self.Cmat,xiNL_der) # (L_Max,s)
+            temp = (2/3.)*np.dot(self.Cmat[:self.L_Max,:self.L_Max],xiNL_der) # (L_Max,s)
             temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
-            temp += np.dot(self.Amat,xiNL)
+            temp += np.dot(self.Amat[:self.L_Max,:self.L_Max],xiNL)
             xiNL = xiNL + DaAP*temp # - Daiso*xiNL_der # uncomment to model AP as func of s rather than y = s/DV
         else:
             xiNL = self.calc_xiNL(params_dict) # (L_Max,s)
@@ -751,9 +751,9 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         if self.include_Sig2obs:
             Sig2obs = self.calc_Sig2obs(params_dict) # (L_Max,)
             if self.model_AP:
-                temp = (4/3.)*np.dot(self.Cmat,Sig2obs)
+                temp = (4/3.)*np.dot(self.Cmat[:self.L_Max,:self.L_Max],Sig2obs)
                 temp = (temp.T*np.array([2*(2*L) + 1 for L in range(self.L_Max)])).T
-                temp = np.dot(self.Amat,Sig2obs) - temp
+                temp = np.dot(self.Amat[:self.L_Max,:self.L_Max],Sig2obs) - temp
                 # Sig2obs *= (1+2*Daiso) 
                 Sig2obs += DaAP*temp
             xiNL = np.concatenate((Sig2obs,xiNL))

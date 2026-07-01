@@ -534,6 +534,9 @@ class Cosmology(Constants,Utilities):
         self.N_ncdm = N_ncdm
         self.m_ncdm = m_ncdm
 
+        if np.fabs(self.wDEa) > self.NOTSOTINY:
+            raise NotImplementedError("wa dependence not yet implemented!")
+        
         if self.verbose:
             if self.As is not None:
                 self.print_this("... ... detected As normalisation, will override sig8.",self.logfile)

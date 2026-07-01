@@ -549,7 +549,7 @@ if __name__ == "__main__":
     # -- kmin,kmax: floats (default 0.02,0.05), min,max values in h_fid/Mpc for fv evaluation
     # -- high_acc: bool (default True), control accuracy of k-space integrals
     # -- verbose,logfile: usual I/O control variables
-    setup = {'out_stem':'temp/','z_eval':0.8,'cosmo':'wcdm','flat':False}
+    setup = {'out_stem':'temp/','z_eval':0.8,'cosmo':'lcdm','flat':True}
     agem = AgnosticEmulator(setup=setup)
     
     # -- n_samp: int (default 1), number of samples to produce. 
@@ -566,7 +566,7 @@ if __name__ == "__main__":
     # -- save_xi: bool (default False), whether or not to store xilin(r) values [can be memory intensive]
     #             These will be written into xi_dir = self.out_stem + self.cosmo (+'_flat') + '/xilin/' + sample_stem
     #             in the files xi_dir/xilin.txt
-    sset = {'n_samp':199,'include_fiducial':True,'save_xi':False,'force':False}
+    sset = {'n_samp':599,'include_fiducial':False,'sample_stem':'train','seed':None,'save_xi':False,'force':False}
     
     out = agem.gen_sample(sample_setup=sset)
     if sset['save_xi']:
@@ -673,16 +673,6 @@ if __name__ == "__main__":
     #       (iii) set n_iter = 1
     #       (iv)  set max_config = 1
     # ***
-        
-    setup_hopt = {'max_epoch':1000,'check_after':300,'n_iter':3,'max_config':50,
-                  'train_frac':0.9,'val_frac':0.1,
-                  'model_name':'test',
-                  'layers':{'min':2,'max':4},
-                  'widths':{'min':5,'max':15},
-                  'lglrates':{'min':-3.0,'max':-2.0},
-                  'wt_decays':{'min':0.0,'max':0.05},
-                  'htypes':['relu','tanh','splus'],
-                  'fixed_width':False,'fixed_htype':False}
     
     # -- agnostic,cosmological: mutually consistent outputs of self.gen_sample.
     # -- invert: bool (default True), whether to construct forward or inverse emulator 
@@ -691,15 +681,51 @@ if __name__ == "__main__":
     # -- optimize: bool (default True). 
     #              If True, run HyperOpt.optimize to train network ensemble.
     #              If False, run HyperOpt.load to load existing network ensemble.
+        
+    setup_hopt = {'max_epoch':3000,'check_after':1000,'n_iter':3,'max_config':50,
+                  'train_frac':0.9,'val_frac':0.1,
+                  'model_name':'test',
+                  'layers':{'min':2,'max':4},
+                  'widths':{'min':5,'max':15},
+                  'lglrates':{'min':-3.0,'max':-2.0},
+                  'wt_decays':{'min':0.0,'max':0.05},
+                  'htypes':['relu','tanh','splus'],
+                  'fixed_width':False,'fixed_htype':False}
 
     start_time = time()
-    neo_fwd = agem.emulate(agnostic,cosmological,invert=False,setup_hopt=setup_hopt,optimize=True)
+    neo_fwd = agem.emulate(agnostic,cosmological,invert=False,setup_hopt=setup_hopt,optimize=False)
     neo_fwd.display_summary()
     agem.time_this(start_time)
+        
+    setup_hopt = {'max_epoch':3000,'check_after':1000,'n_iter':3,'max_config':50,
+                  'train_frac':0.9,'val_frac':0.1,
+                  'model_name':'test',
+                  'layers':{'min':2,'max':5},
+                  'widths':{'min':15,'max':45},
+                  'lglrates':{'min':-3.0,'max':-2.0},
+                  'wt_decays':{'min':0.0,'max':0.05},
+                  'htypes':['relu','tanh','splus'],
+                  'fixed_width':False,'fixed_htype':False}
 
     start_time = time()
-    neo_inv = agem.emulate(agnostic,cosmological,invert=True,setup_hopt=setup_hopt,optimize=True)
+    neo_inv = agem.emulate(agnostic,cosmological,invert=True,setup_hopt=setup_hopt,optimize=False)
     neo_inv.display_summary()
     agem.time_this(start_time)
+
+    # setup test data
+    sset = {'n_samp':99,'include_fiducial':False,'sample_stem':'test','seed':None,'save_xi':False,'force':False}    
+    start_time = time()
+    print('Test sample...')
+    agnostic_test,cosmological_test = agem.gen_sample(sample_setup=sset)
+    agem.time_this(start_time)
+
+    start_time = time()
+    print('Predictions...')
+    print('... forward')
+    agnostic_predict = neo_fwd.predict(cosmological_test)
+    print('... inverse')
+    cosmological_predict = neo_inv.predict(agnostic_test)
+    agem.time_this(start_time)
+    
     
 #################################################

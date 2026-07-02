@@ -58,7 +58,10 @@ class AgnosticEmulator(Utilities,MLUtilities):
         
         if self.verbose:
             self.print_this('Agnostic emulator for BAO inference...',self.logfile)
-        
+
+        if self.cosmo in (['w0wacdm'] + self.neutrino_cosmologies):
+            raise NotImplementedError(self.cosmo+' not yet implemented!')
+            
         # BiSequential basis setup
         self.basis_stem = Basis_Stem
         self.load_basis() # sets self.binet,self.basis,self.n_basis
@@ -71,6 +74,8 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.basis_func = self.evaluate_basis(self.rvals)
 
         self.n_agnostic = self.n_basis + 4 # (9) basis coeffs + f,sigv,DaAP,fv ( = 13)
+        self.keys_agnostic = ['w{0:d}'.format(n) for n in range(self.n_basis)]
+        self.keys_agnostic += ['f','sigv','DaAP','fv']
         
         # setup fiducial cosmology and param variation lists
         self.setup_fiducial_cosmology()
@@ -230,7 +235,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
                         These will be written into xi_dir = self.out_stem + self.cosmo (+'_flat') + '/xilin/' + sample_stem
                         in the file xi_dir/xilin.txt.
             Returns:
-            -- agnostic (self.n_basis,n_samp), cosmological (self.n_params,n_samp)[, xilin (n_samp,self.n_r), only if save_xi=True]
+            -- agnostic (self.n_agnostic,n_samp), cosmological (self.n_params,n_samp)[, xilin (n_samp,self.n_r), only if save_xi=True]
         """
         start_time = time()
         
@@ -506,8 +511,10 @@ class AgnosticEmulator(Utilities,MLUtilities):
             
         setup_dict = copy.deepcopy(setup_hopt)
 
-        setup_dict['X'] = cosmological if invert else agnostic
-        setup_dict['Y'] = agnostic if invert else cosmological
+        # inverse: X=agnostic, Y=cosmological
+        # forward: X=cosmological, Y=agnostic
+        setup_dict['X'] = agnostic if invert else cosmological
+        setup_dict['Y'] = cosmological if invert else agnostic
 
         family = setup_dict.get('family','seq')
         setup_dict['family'] = family
@@ -684,9 +691,10 @@ if __name__ == "__main__":
         
     setup_hopt = {'max_epoch':3000,'check_after':1000,'n_iter':3,'max_config':50,
                   'train_frac':0.9,'val_frac':0.1,
-                  'model_name':'test',
-                  'layers':{'min':2,'max':4},
-                  'widths':{'min':5,'max':15},
+                  'nproc':16,
+                  'model_name':'dummy',
+                  'layers':{'min':2,'max':5},
+                  'widths':{'min':5,'max':45},
                   'lglrates':{'min':-3.0,'max':-2.0},
                   'wt_decays':{'min':0.0,'max':0.05},
                   'htypes':['relu','tanh','splus'],
@@ -694,26 +702,16 @@ if __name__ == "__main__":
 
     start_time = time()
     neo_fwd = agem.emulate(agnostic,cosmological,invert=False,setup_hopt=setup_hopt,optimize=False)
-    neo_fwd.display_summary()
+    # neo_fwd.display_summary()
     agem.time_this(start_time)
-        
-    setup_hopt = {'max_epoch':3000,'check_after':1000,'n_iter':3,'max_config':50,
-                  'train_frac':0.9,'val_frac':0.1,
-                  'model_name':'test',
-                  'layers':{'min':2,'max':5},
-                  'widths':{'min':15,'max':45},
-                  'lglrates':{'min':-3.0,'max':-2.0},
-                  'wt_decays':{'min':0.0,'max':0.05},
-                  'htypes':['relu','tanh','splus'],
-                  'fixed_width':False,'fixed_htype':False}
 
     start_time = time()
     neo_inv = agem.emulate(agnostic,cosmological,invert=True,setup_hopt=setup_hopt,optimize=False)
-    neo_inv.display_summary()
+    # neo_inv.display_summary()
     agem.time_this(start_time)
 
     # setup test data
-    sset = {'n_samp':99,'include_fiducial':False,'sample_stem':'test','seed':None,'save_xi':False,'force':False}    
+    sset = {'n_samp':199,'include_fiducial':False,'sample_stem':'test','seed':None,'save_xi':False,'force':False}    
     start_time = time()
     print('Test sample...')
     agnostic_test,cosmological_test = agem.gen_sample(sample_setup=sset)
@@ -726,6 +724,71 @@ if __name__ == "__main__":
     print('... inverse')
     cosmological_predict = neo_inv.predict(agnostic_test)
     agem.time_this(start_time)
+
+    print('Flattened residuals...')
+    err_agnos = (agnostic_predict/(agnostic_test + 1e-15) - 1).flatten()
+    err_agnos = err_agnos[np.isfinite(err_agnos)]
+    errwidth_agnos = 0.5*(np.percentile(err_agnos,84)-np.percentile(err_agnos,16))
+
+    err_cosmo = (cosmological_predict/(cosmological_test + 1e-15) - 1).flatten()
+    err_cosmo = err_cosmo[np.isfinite(err_cosmo)]
+    errwidth_cosmo = 0.5*(np.percentile(err_cosmo,84)-np.percentile(err_cosmo,16))
+
+    bins = np.linspace(-1,1,900)
+    bin_mid = 0.5*(bins[1:]+bins[:-1])
+    dx = bins[1]-bins[0]
     
+    hist_agnos,dummy = np.histogram(err_agnos,bins=bins,density=False)
+    hist_agnos = hist_agnos/err_agnos.size/dx
+
+    hist_cosmo,dummy = np.histogram(err_cosmo,bins=bins,density=False)
+    hist_cosmo = hist_cosmo/err_cosmo.size/dx
+
+    import matplotlib.pyplot as plt
+    FS3 = 13
+    
+    FSize = 5
+    plt.figure(figsize=(FSize,FSize))
+    plt.yscale('log')
+    plt.xlim(-0.25,0.25)
+    plt.ylim(4e-1,8e2)
+    plt.xlabel('residual')
+    plt.ylabel('probability density')
+    plt.plot(bin_mid,hist_agnos,'r-',drawstyle='steps',lw=1,label='forward')
+    plt.plot(bin_mid,hist_cosmo,'k--',drawstyle='steps',lw=1.2,label='inverse')
+    plt.legend(loc='upper left')
+    plt.text(-0.2,7e1,'$\\sigma = {0:.4f}$'.format(errwidth_agnos),fontsize=FS3,c='r')
+    plt.text(-0.2,4e1,'$\\sigma = {0:.4f}$'.format(errwidth_cosmo),fontsize=FS3)
+    plt.text(0.05,3e2,'range: {0:.0f}%'.format(agem.perc*100),fontsize=FS3)
+    plt.minorticks_on()
+    # if Save_Fig:
+    #     outfile = Plot_Dir + 'residuals_{0:.0f}pc.png'.format(agem.perc*100)
+    #     print('Saving to file:',outfile)
+    #     plt.savefig(outfile,bbox_inches='tight')
+    # else:
+    plt.show()
+
+    print('Parameter-wise residuals...')
+    err_agnos = (agnostic_predict/(agnostic_test + 1e-15) - 1)
+    errwidth_agnos = 0.5*(np.percentile(err_agnos,84,axis=1)-np.percentile(err_agnos,16,axis=1))
+
+    err_cosmo = (cosmological_predict/(cosmological_test + 1e-15) - 1)
+    errwidth_cosmo = 0.5*(np.percentile(err_cosmo,84,axis=1)-np.percentile(err_cosmo,16,axis=1))
+
+    print('... forward')
+    for p in range(len(agem.keys_agnostic)):
+        print(agem.keys_agnostic[p]+': {0:.3e}'.format(errwidth_agnos[p]))
+
+    print('... inverse')
+    for p in range(len(agem.keys_vary)):
+        print(agem.keys_vary[p]+': {0:.3e}'.format(errwidth_cosmo[p]))
+        
+    # hists_cosmo = []
+    # for p in range(len(list(agem.keys_vary))):
+    #     hist,bins = np.histogram(err_cosmo[p],bins=bins,density=False)
+    #     hist = hist/err_cosmo.shape[1]/dx
+    #     hists_cosmo.append(hist)        
+    
+    print('... all done!')
     
 #################################################

@@ -326,14 +326,15 @@ class AgnosticEmulator(Utilities,MLUtilities):
                     co = Cosmology(Om=pdict['Om'],hubble=pdict['h'],As=pdict['As'],ns=pdict['ns'],Ob=pdict['Ob'],
                                    Ok=pdict['Ok'],wDE0=pdict['w0'],wDEa=pdict['wa'],
                                    N_ur=pdict['N_ur'],N_ncdm=pdict['N_ncdm'],m_ncdm=pdict['m_ncdm'],verbose=False)
-                    xilin[n] = co.calc_xi_lin(self.rvals*pdict['h']/self.pfid['h']) # use Mpc/h in varied cosmology
-
+                    
+                    others,growth = self.calc_others(co)
+                    
+                    # update below for neutrino cosmologies (after universe.py is suitably updated), 
+                    # where xilin is directly provided at evaluation redshift.
+                    xilin[n] = growth**2*co.calc_xi_lin(self.rvals*pdict['h']/self.pfid['h']) # use Mpc/h in varied cosmology
+                    
                     agnostic[n,:self.n_basis] = self.calc_basiscoeffs(xilin[n])
-                    # Cinv = np.eye(self.n_r)
-                    # Fisher = np.dot(self.basis_func,np.dot(Cinv,self.basis_func.T)) # since F = M^T C^-1 M and M = basis_func
-                    # Finv,detF = self.svd_inv(Fisher,hermitian=True)
-                    # agnostic[n,:self.n_basis] = np.dot(Finv,np.dot(self.basis_func,np.dot(Cinv,xilin[n]))) # ahat = F^-1 (M^T C^-1 y)
-                    agnostic[n,self.n_basis:] = self.calc_others(co)
+                    agnostic[n,self.n_basis:] = others
                 except Exception:
                     agnostic[n] += np.nan
                 if self.verbose:
@@ -386,7 +387,9 @@ class AgnosticEmulator(Utilities,MLUtilities):
     def calc_others(self,co):
         """ Calculate cosmological parameters other than basis coeffs, namely f,sigv,DaAP,fv at evaluation redshift.
             -- co: instance of Cosmology
-            Returns array of shape (4,).
+            Returns 
+            -- array of shape (4,) containing [f,sigv,DaAP,fv]
+            -- scalar value of growth (normalized to unity at z=0)
         """
         growth = co.Growth(self.z_eval)/co.Growth(0.0)
         f = co.fGrowth(z=self.z_eval)
@@ -414,7 +417,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
 
         out = np.array([f,sigv,DaAP,fv])
         
-        return out
+        return out,growth
     #############################################
 
     #############################################

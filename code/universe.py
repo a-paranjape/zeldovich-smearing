@@ -572,7 +572,7 @@ class Cosmology(Constants,Utilities):
                   'N_ur': self.N_ur,
                   'N_ncdm': self.N_ncdm,
                   'P_k_max_h/Mpc': kmax,
-                  'z_pk': z_out
+                  'z_pk': z_out # update this to be evaluation redshift in neutrino cosmologies.
                   }
         if (np.fabs(self.wDE0 + 1) > self.NOTSOTINY) | (np.fabs(self.wDEa) > self.NOTSOTINY):
             if self.verbose:

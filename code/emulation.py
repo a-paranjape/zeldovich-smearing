@@ -37,6 +37,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
             -- kmin,kmax: floats (default 0.02,0.05), min,max values in h_fid/Mpc for fv evaluation
             -- high_acc: bool (default True), control accuracy of k-space integrals
             -- verbose,logfile: usual I/O control variables
+            Note: plots can be stored in self.plot_dir which is created at self.out_stem + self.cosmo (+'_flat') + '/plots/'.
         """
         Utilities.__init__(self)
         MLUtilities.__init__(self)
@@ -51,6 +52,16 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.perc = setup.get('perc',0.1)
         self.mnu_max = setup.get('mnu_max',0.3) if self.cosmo in self.neutrino_cosmologies else None
 
+        # stuff needed for plotting
+        self.flat_str = '_flat' if self.flat else ''
+        self.plot_dir = self.out_stem + self.cosmo + self.flat_str + '/plots/'
+        Path(self.plot_dir).mkdir(parents=True,exist_ok=True)
+        self.cosmo_latex_list = {'lcdm':"$\\Lambda$CDM",'lcdm_flat':"flat $\\Lambda$CDM",
+                                 'wcdm':"$w$CDM",'wcdm_flat':"flat $w$CDM",
+                                 'w0wacdm':"$(w_{{0}},w_{{a}})$CDM",'wcdm_flat':"flat $(w_{{0}},w_{{a}})$CDM",
+                                 'nucdm':"$\nu\\Lambda$CDM",'ncdm_flat':"flat $\nu\\Lambda$CDM"}
+        self.cosmo_latex = self.cosmo_latex_list[self.cosmo+self.flat_str]
+        
         self.verbose = setup.get('verbose',True)
         self.logfile = setup.get('logfile',None)
 
@@ -206,11 +217,11 @@ class AgnosticEmulator(Utilities,MLUtilities):
             multiplier = 1.0 if key in self.keys_absolute else value
             self.param_mins.append(value - self.perc*multiplier)
             self.param_maxs.append(value + self.perc*multiplier)
-        # although the above also sets some spurious numbers for neutrino params N_ur and N_ncdm, those won't be used in self.gen_samp
+
         if self.cosmo in self.neutrino_cosmologies:
             ind_mncdm = self.keys_vary.index('m_ncdm')
             self.param_mins[ind_mncdm] = 1e-4
-            print('!WARNING!: need to figure out how to set minimum neutrino mass!')
+            print('!WARNING!: need to figure out how to set minimum neutrino mass! Currently hard-coded to {0:.3e} eV'.format(self.param_mins[ind_mncdm]))
             self.param_maxs[ind_mncdm] = self.mnu_max
             
         return
@@ -246,13 +257,12 @@ class AgnosticEmulator(Utilities,MLUtilities):
         include_fiducial = sample_setup.get('include_fiducial',False)
         save_xi = sample_setup.get('save_xi',False)
         
-        flat_str = '_flat' if self.flat else ''
-        out_dir = self.out_stem + self.cosmo + flat_str + '/samples/' + sample_stem # folder to write/read samples to/from
+        out_dir = self.out_stem + self.cosmo + self.flat_str + '/samples/' + sample_stem # folder to write/read samples to/from
         file_agnostic = out_dir + '/agnostic.txt'
         file_cosmological = out_dir + '/cosmological.txt'
 
         if save_xi:
-            xi_dir = self.out_stem + self.cosmo + flat_str + '/xilin/' + sample_stem # folder to write/read xilin to/from
+            xi_dir = self.out_stem + self.cosmo + self.flat_str + '/xilin/' + sample_stem # folder to write/read xilin to/from
             file_xi = xi_dir + '/xilin.txt'
         
         if self.verbose:
@@ -521,8 +531,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         model_name = setup_dict.get('model_name',family)
         setup_dict['model_name'] = model_name
         
-        flat_str = '_flat' if self.flat else ''
-        setup_dict['file_stem'] = self.out_stem + self.cosmo + flat_str + '/models/' + model_name + inv_str # folder to write/read samples to/from
+        setup_dict['file_stem'] = self.out_stem + self.cosmo + self.flat_str + '/models/' + model_name + inv_str # folder to write/read samples to/from
 
         setup_dict['loss_type'] = 'square'
         setup_dict['ensemble'] = True
@@ -762,7 +771,7 @@ if __name__ == "__main__":
     plt.text(0.05,3e2,'range: {0:.0f}%'.format(agem.perc*100),fontsize=FS3)
     plt.minorticks_on()
     # if Save_Fig:
-    #     outfile = Plot_Dir + 'residuals_{0:.0f}pc.png'.format(agem.perc*100)
+    #     outfile = agem.plot_dir + 'residuals_{0:.0f}pc.png'.format(agem.perc*100)
     #     print('Saving to file:',outfile)
     #     plt.savefig(outfile,bbox_inches='tight')
     # else:

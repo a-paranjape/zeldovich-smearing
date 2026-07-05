@@ -7,6 +7,7 @@
 * [Code organization](#code-organization)
 * [Data organization](#data-organization)
 * [Examples](#examples)
+* [Emulation](#emulation)
 * [Citation](#citation)
 * [Contact](#contact)
 
@@ -27,14 +28,20 @@ We also provide the code we used to produce the measurements for the _DESI-LRG2_
 
 The code and data in this repository should be sufficient to reproduce all the main results of [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract). We have provided several *example notebooks* (described below) to implement the MCMC analysis and explore the theoretical model.
 
+We also provide emulators to move back and forth between the cosmological and agnostic parameter spaces, for a variety of cosmological models. These emulators can be incorporated into MCMC pipelines to implement the 'strong priors' discussed in [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract).
+
 ## Dependencies
 * Python 3.9+, NumPy 2.0+
 * [Cobaya](https://cobaya.readthedocs.io/en/latest/): Our model is implemented in the $\texttt{Cobaya}$ framework developed by [Torrado & Lewis (2021)](https://ui.adsabs.harvard.edu/abs/2021JCAP...05..057T/abstract). This allows for straightforward integration into Markov Chain Monte Carlo (MCMC) pipelines.
   * `mpi4py`: This is needed if $\texttt{Cobaya}$ is to be installed with MPI support (see [Installation](#installation)).
   * `ipyparallel`: This is needed in `ZelSmear_MCMC_mpi.ipynb` (see [Examples](#examples)) to run MCMC chains with MPI support. 
 * [GetDist](https://getdist.readthedocs.io/): This is used for analysing MCMC chains and producing plots of posterior and other distributions.
-* [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract), with the source code available as `code/mlalgos.BiSequential` and the specific trained instance stored in `examples/binet/`. When measuring pairwise correlations, it also uses Python's `multiprocessing` package for parallelization using the `code/mllib.MLUtilities.run_processes` method.
+* [mlfundas](https://github.com/a-paranjape/mlfundas): This machine learning repository provides multiple utilities:
+    * It is primarily used for its implementation of the `BiSequential` basis described by [Paranjape & Sheth (2025)](https://ui.adsabs.harvard.edu/abs/2025JCAP...06..009P/abstract), with the source code available as `code/mlalgos.BiSequential` and the specific trained instance stored in `examples/binet/`.
+    * When measuring pairwise correlations, it also uses Python's `multiprocessing` package for parallelization using the `code/mllib.MLUtilities.run_processes` method.
+    * Finally, it provides the framework for building and utilizing emulators through `code/emulation.py` (usage is demonstrated in example notebooks). 
 * [sahyadri-sandbox](https://github.com/a-paranjape/sahyadri-sandbox): This repository is used for our implementation of the core algorithms needed for measuring pairwise correlations (anisotropic 2pcf and power spectrum) in $N$-body tracer samples, although other implementations can also be used.
+* [CLASS](https://lesgourg.github.io/class_public/class.html): This is needed for generating training and test samples for emulation (see [Emulation](#emulation)). It can be skipped if new samples are not required.
 
 ## Installation
 The following steps should be sufficient for using the functionality of this repository:
@@ -43,7 +50,7 @@ The following steps should be sufficient for using the functionality of this rep
   ```
   git clone https://github.com/a-paranjape/mlfundas.git
   ```
-3. Setup $\texttt{sahyadri-sandbox}$. *(Only needed if pairwise correlations need to be measured in N-body samples)*
+3. Setup $\texttt{sahyadri-sandbox}$. *(Only needed if pairwise correlations need to be measured in N-body samples)*.
     * Clone into the repository. E.g., for HTTPS-based transfer, in your chosen install location use
     ```
     git clone https://github.com/a-paranjape/sahyadri-sandbox.git
@@ -60,13 +67,26 @@ The following steps should be sufficient for using the functionality of this rep
        * Setup halo paths. *(Only needed if pairwise correlations need to be measured in N-body samples)*
          * Set the variable `Sahyadri_Path` to `/your/path/to/sahyadri-sandbox/scripts/post-process/`.
          * Set the variable `Abacus_Path` to `/your/path/to/abacus/halos` (these will need to be separately downloaded, see the _AbacusSummit_ [data access page](https://abacussummit.readthedocs.io/en/latest/data-access.html)).
-5. Test the basic installation:
+5. Setup $\texttt{CLASS}$. *(Only needed if new training and/or test samples are desired for building/using emulators; see [Emulation](#emulation))*.
+   * Download the latest `class_public***.tar.gz` file from the [CLASS](https://lesgourg.github.io/class_public/class.html) repository and unzip it in the local install folder.
+   * Depending on your system, you may need to additionally install `gcc`, `openmpi` and `fftw` libraries. The Makefile should be appropriately edited to reflect their locations.
+   * Run the following in the `class_public` folder
+     ```
+     make clean
+     make
+     ```
+     which should compile the code with Python support. In case of errors, kindly refer to the original documentation.   
+7. Test the basic installation:
    * In a terminal in `your/path/to/zeldovich-smearing/code`, type
    ```
    python -c "from theory import TheoryManipulator; tm = TheoryManipulator(sample='DESI-LRG2')"
    ```
    This should produce a bunch of text related to the `BiSequential` basis instance, followed by a list containing two paths to `.txt` files and ending with the phrase `... setup complete`. \
-   *\[**Note:** Although this doesn't explicitly check whether MPI capability (if requested) is correctly installed, that should have been accounted for if the Cobaya installation steps for MPI support were followed precisely.\]*
+   *\[**Note:** Although this doesn't explicitly check whether MPI capability (if requested) is correctly installed, that should have been accounted for if the Cobaya installation steps for MPI support were followed precisely.\]* \
+   If $\texttt{CLASS}$ was installed, test the installation using
+   ```
+   python -c "from classy import Class"
+   ```
 
 
 ## Code organization
@@ -102,6 +122,12 @@ The source code is contained in the folder `code/` and is distributed across the
   This script implements parallelized calculations of the 2pcf and power spectrum of the _DESI-LRG2_ and _Euclid-ELG_ samples of _AbacusSummit_ halos, in real space as well as multipoles in redshift space. It can also be edited to measure these quantities for custom samples from _AbacusSummit_. This script is provided primarily for transparency and is not (yet) very user-friendly, so please [contact](#contact) the authors if you have difficulty using it.\
   **Warning:** The redshift space 2pcf implementation borrowed from $\texttt{sahyadri-sandbox}$ is currently **very** slow. You might be better off with some other publicly available implementation such as [Corrfunc](https://github.com/manodeep/Corrfunc) or [TreeCorr](https://github.com/rmjarvis/TreeCorr).\
   **Note:** To use this script, _AbacusSummit_ halo samples would need to be separately downloaded. The download location should then be provided to the code by editing `paths.py` (see [Installation](#installation)).
+
+* `universe.py`:\
+  *[DOCUMENTATION UNDER CONSTRUCTION]*
+  
+* `emulation.py`:\
+  *[DOCUMENTATION UNDER CONSTRUCTION]*
   
 * `paths.py`:\
   This is an auxiliary file that must be edited during [installation](#installation) and contains paths to various dependencies.
@@ -109,6 +135,8 @@ The source code is contained in the folder `code/` and is distributed across the
 [^1]:See [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract) for the original definitions of the quantities listed here.
 
 ## Data organization
+
+### Primary analysis
 We provide several useful data sets in the folder `examples/data/`.
 
 These include the following measurements for the toy model from [PS26a](https://ui.adsabs.harvard.edu/abs/2026arXiv260214533P/abstract) and the _DESI-LRG2_ and _Euclid-ELG_ samples constructed using _AbacusSummit_ halos from [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract):
@@ -126,6 +154,13 @@ The data files for different samples are organized as follows.
 
 Plots visualizing these data sets can be found in correspondingly organized sub-folders of `examples/plots/`.
 
+### Emulation analysis
+To support the emulators for various cosmological models described in [Emulation](#emulation), we provide training and test samples, along with the emulator model weights in each case. These are organized in sub-folders of `emulation/emulators/z<redshift>/<cosmo>/`, where `<redshift>` is the evaluation redshift and `<cosmo>` names the cosmological model:
+* `samples/`: training and test samples, each containg two files `cosmological.txt` and `agnostic.txt`.
+* `models/`: trained ensembles of dense networks for forward (cosmological $\to$ agnostic) and inverse (agnostic $\to$ cosmological) emulation, with various architectural choices for each (shallow, deep, etc.).
+* `plots/`: plots demonstrating emulator performance.
+* `xilin/`: for reference, this folder contains the ground truth linear 2pcf at the evaluation redshift.
+
 ## Examples
 In the folder `examples/` we provide a number of Jupyter notebooks.
 * `ZelSmear_Explore_Theory.ipynb`:\
@@ -136,6 +171,10 @@ In the folder `examples/` we provide a number of Jupyter notebooks.
   This is a convenience notebook to track the progress of MCMC chains while they run. The various variables should be set to match the choices made in `ZelSmear_MCMC_mpi.ipynb` or `ZelSmear_MCMC.ipynb`, as the case may be.
 * `Pairwise_Visualize_Abacus.ipynb`:\
   This notebook visualizes the stored measurements of pairwise correlations in the _DESI-LRG2_ and _Euclid-ELG_ samples. It was used to generate some of the plots in [PS26b](https://ui.adsabs.harvard.edu/abs/2026arXiv260606591P/abstract).
+
+## Emulation
+*[DOCUMENTATION UNDER CONSTRUCTION]* \
+*[**Note:** All emulators assume unit bias tracers. The basis coefficients should be interpreted accordingly when used in a full inference analysis.]*
 
 ## Citation
 If you use any of the code and/or data in this repository, we kindly request that you include the following citations in your publication's .bib file and the URL of this repository in your text or acknowledgments.

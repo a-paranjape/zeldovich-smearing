@@ -450,7 +450,7 @@ class Cosmology(Constants,Utilities):
     ############################################################
     def __init__(self,Om=0.3063,Ob=0.0484,Ok=0.0,hubble=0.6781,Tcmb=2.7255,
                  wDE0=-1.0,wDEa=0.0,sig8=0.815,As=None,kpivot=0.05,ns=0.9677,
-                 N_ur=3.044,N_ncdm=0,m_ncdm=0.0,
+                 N_ur=3.044,N_ncdm=0,m_ncdm=0.0,z_eval=0.0,
                  verbose=True,logfile=None): 
         """ Initialise various constants. 
             -- Om : Total matter density parameter (DM + baryons)
@@ -469,6 +469,7 @@ class Cosmology(Constants,Utilities):
             -- m_ncdm: mass(es) of non-cold dark matter species in eV.
                        if N_ncdm==1, m_ncdm should be a single float.
                        if N_ncdm > 1, m_ncdm should be a list of N_ncdm floats
+            -- z_eval: transfer function evaluation redshift for neutrino cosmologies (only used if N_ncdm > 0)
         
             Methods:
             -- calc_xi_lin()
@@ -533,6 +534,7 @@ class Cosmology(Constants,Utilities):
         self.N_ur = N_ur
         self.N_ncdm = N_ncdm
         self.m_ncdm = m_ncdm
+        self.z_eval = z_eval
 
         if np.fabs(self.wDEa) > self.NOTSOTINY:
             raise NotImplementedError("wa dependence not yet implemented!")
@@ -561,7 +563,7 @@ class Cosmology(Constants,Utilities):
 
         if self.verbose:
             self.print_this("... ... using CLASS",self.logfile)
-        z_out = 0.0 # MAY NEED TO ALTER THIS so as not to have radiation at late times            
+        z_out = 0.0 if self.N_ncdm == 0 else self.z_eval # MAY NEED TO ALTER THIS so as not to have radiation at late times            
         params = {'output': 'mPk',
                   'n_s': self.ns, 
                   'h': self.hubble,
@@ -572,7 +574,7 @@ class Cosmology(Constants,Utilities):
                   'N_ur': self.N_ur,
                   'N_ncdm': self.N_ncdm,
                   'P_k_max_h/Mpc': kmax,
-                  'z_pk': z_out # update this to be evaluation redshift in neutrino cosmologies.
+                  'z_pk': z_out 
                   }
         if (np.fabs(self.wDE0 + 1) > self.NOTSOTINY) | (np.fabs(self.wDEa) > self.NOTSOTINY):
             if self.verbose:

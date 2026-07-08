@@ -56,16 +56,11 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.flat_str = '_flat' if self.flat else ''
         self.plot_dir = self.out_stem + self.cosmo + self.flat_str + '/plots/'
         Path(self.plot_dir).mkdir(parents=True,exist_ok=True)
-        self.cosmo_latex_list = {'lcdm':"$\\Lambda$CDM",'lcdm_flat':"flat $\\Lambda$CDM",
-                                 'wcdm':"$w$CDM",'wcdm_flat':"flat $w$CDM",
-                                 'w0wacdm':"$(w_{{0}},w_{{a}})$CDM",'wcdm_flat':"flat $(w_{{0}},w_{{a}})$CDM",
-                                 'nucdm':"$\nu\\Lambda$CDM",'ncdm_flat':"flat $\nu\\Lambda$CDM"}
-        self.cosmo_latex = self.cosmo_latex_list[self.cosmo+self.flat_str]
         
         self.verbose = setup.get('verbose',True)
         self.logfile = setup.get('logfile',None)
 
-        self.keys_absolute = ['Ok','wa'] # keys for which perc should be treated as absolute variation
+        self.keys_absolute = ['Ok','wDEa'] # keys for which perc should be treated as absolute variation
         
         if self.verbose:
             self.print_this('Agnostic emulator for BAO inference...',self.logfile)
@@ -107,6 +102,9 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.dlnk_int = np.log(self.ktab_int[1]/self.ktab_int[0])
         self.k3by2pi2 = self.ktab_int**3/(2*np.pi**2)
         self.cond_k = (self.ktab_int <= self.kmax) & (self.ktab_int >= self.kmin)
+
+        # latex setup
+        self.setup_latex()
         
         if self.verbose:
             self.print_this('... setup complete',self.logfile)
@@ -114,6 +112,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         
     #############################################
 
+    
     #############################################
     def load_basis(self):
         """ Simple wrapper to load BiSequential basis. Sets the following class attributes:
@@ -175,11 +174,11 @@ class AgnosticEmulator(Utilities,MLUtilities):
             self.print_this('... setting up fiducial cosmology and sampling ranges',self.logfile)
         # fiducial values from table 2 of Planck18 cosmology paper arXiv:1807.06209
         self.pfid = {'Om':0.3153,'h':0.6737,'As':np.exp(3.045)*1e-10,'ns':0.9649,'Ob':0.02237/0.6737**2,'Ok':0.0,
-                     'w0':-1.0,'wa':0.0,
+                     'wDE0':-1.0,'wDEa':0.0,
                      'N_ur':3.044,'N_ncdm':0,'m_ncdm':0.0}
 
         self.co_fid = Cosmology(Om=self.pfid['Om'],hubble=self.pfid['h'],As=self.pfid['As'],ns=self.pfid['ns'],Ob=self.pfid['Ob'],
-                                Ok=self.pfid['Ok'],wDE0=self.pfid['w0'],wDEa=self.pfid['wa'],
+                                Ok=self.pfid['Ok'],wDE0=self.pfid['wDE0'],wDEa=self.pfid['wDEa'],
                                 N_ur=self.pfid['N_ur'],N_ncdm=self.pfid['N_ncdm'],m_ncdm=self.pfid['m_ncdm'],verbose=False)
         self.xilin_fid = self.co_fid.calc_xi_lin(self.rvals)
 
@@ -193,12 +192,12 @@ class AgnosticEmulator(Utilities,MLUtilities):
         if self.flat:
             keys_vary.remove('Ok')        
         if self.cosmo not in ['wcdm','w0wacdm']:
-            keys_vary.remove('w0')
-            keys_vary.remove('wa')
+            keys_vary.remove('wDE0')
+            keys_vary.remove('wDEa')
         if self.cosmo not in self.neutrino_cosmologies:
             keys_vary.remove('m_ncdm')
         if self.cosmo == 'wcdm':
-            keys_vary.remove('wa')
+            keys_vary.remove('wDEa')
             
         self.keys_vary = keys_vary
 
@@ -226,6 +225,45 @@ class AgnosticEmulator(Utilities,MLUtilities):
             
         return
     #############################################        
+
+    #############################################
+    def setup_latex(self):
+        """ Simple utility to setup lists and dictionaries for generating Latex labels for plotting. """
+
+        # global label defining cosmological model
+        self.cosmo_latex_list = {'lcdm':"$\\Lambda$CDM",'lcdm_flat':"flat $\\Lambda$CDM",
+                                 'wcdm':"$w$CDM",'wcdm_flat':"flat $w$CDM",
+                                 'w0wacdm':"$(w_{{0}},w_{{a}})$CDM",'wcdm_flat':"flat $(w_{{0}},w_{{a}})$CDM",
+                                 'nucdm':"$\nu\\Lambda$CDM",'ncdm_flat':"flat $\nu\\Lambda$CDM"}
+        self.cosmo_latex = self.cosmo_latex_list[self.cosmo+self.flat_str]
+
+        # individual parameter labels (useful for getdist)
+        self.latex_keys_all = {'Om':"\\Omega_{\\rm m}",
+                               'h':'h',
+                               'As':"A_{\\rm s}",
+                               'ns':"n_{\\rm s}",
+                               'Ob':"\\Omega_{\\rm b}",
+                               'Ok':"\\Omega_{\\rm k}",
+                               'wDE0':"w^{\\rm (DE)}_0",
+                               'wDEa':"w^{\\rm (DE)}_a",
+                               'm_ncdm':"m_{\\nu}",
+                               'f':'f',
+                               'sigv':"\\sigma_{\\rm v}",
+                               'DaAP':"\\Delta\\alpha_{\\rm AP}",
+                               'fv':"f_{\\rm v}"}
+        for b in range(self.n_basis):
+            self.latex_keys_all[f"w{b}"] = f"w_{{{b}}}"
+
+        self.latex_agnostic = []
+        for key in self.keys_agnostic:
+            self.latex_agnostic.append(self.latex_keys_all[key])
+
+        self.latex_cosmological = []
+        for key in self.keys_vary:
+            self.latex_cosmological.append(self.latex_keys_all[key])
+            
+        return
+    #############################################
 
     #############################################
     def gen_sample(self,sample_setup={}):
@@ -324,14 +362,18 @@ class AgnosticEmulator(Utilities,MLUtilities):
 
                 try:
                     co = Cosmology(Om=pdict['Om'],hubble=pdict['h'],As=pdict['As'],ns=pdict['ns'],Ob=pdict['Ob'],
-                                   Ok=pdict['Ok'],wDE0=pdict['w0'],wDEa=pdict['wa'],
-                                   N_ur=pdict['N_ur'],N_ncdm=pdict['N_ncdm'],m_ncdm=pdict['m_ncdm'],verbose=False)
+                                   Ok=pdict['Ok'],wDE0=pdict['wDE0'],wDEa=pdict['wDEa'],
+                                   N_ur=pdict['N_ur'],N_ncdm=pdict['N_ncdm'],m_ncdm=pdict['m_ncdm'],z_eval=self.z_eval,
+                                   verbose=False)
                     
                     others,growth = self.calc_others(co)
                     
-                    # update below for neutrino cosmologies (after universe.py is suitably updated), 
-                    # where xilin is directly provided at evaluation redshift.
-                    xilin[n] = growth**2*co.calc_xi_lin(self.rvals*pdict['h']/self.pfid['h']) # use Mpc/h in varied cosmology
+                    # for neutrino cosmologies, xilin is directly provided at evaluation redshift.
+                    # for others, multiply by growth**2
+                    xi_calc = co.calc_xi_lin(self.rvals*pdict['h']/self.pfid['h']) # use Mpc/h in varied cosmology
+                    if self.cosmo not in self.neutrino_cosmologies:
+                        xi_calc *= growth**2
+                    xilin[n] = xi_calc
                     
                     agnostic[n,:self.n_basis] = self.calc_basiscoeffs(xilin[n])
                     agnostic[n,self.n_basis:] = others
@@ -423,7 +465,8 @@ class AgnosticEmulator(Utilities,MLUtilities):
     #############################################
     def emulate(self,agnostic,cosmological,invert=True,setup_hopt={},optimize=True):
         """ Wrapper around HyperOpt.optimize.
-            -- agnostic,cosmological: mutually consistent outputs of self.gen_sample.
+            -- agnostic,cosmological: mutually consistent outputs of self.gen_sample. 
+                                      Can be dummy arrays of shape (1,1) if optimize=False (i.e. for loading existing emulator).
             -- invert: bool (default True), whether to construct forward or inverse emulator 
                        True : forward emulator, with (input=cosmological, output=agnostic)
                        False: inverse emulator, with (input=agnostic,output=cosmological)
@@ -550,6 +593,16 @@ class AgnosticEmulator(Utilities,MLUtilities):
             model = hopt.load()
         return model
     #############################################
+
+    #############################################
+    def load(self,invert=True,model_name=''):
+        """ Simple wrapper around self.emulate to load existing emulator instance."""
+        dummy_ag = np.zeros((self.n_agnostic,1))
+        dummy_co = np.zeros((self.n_params,1))
+        neo = self.emulate(dummy_ag,dummy_co,invert=invert,setup_hopt={'model_name':model_name},optimize=False)
+        return neo
+    #############################################
+    
 #################################################
 
 

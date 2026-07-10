@@ -30,7 +30,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
             -- z_eval: float >= 0.0 (default 0.0), evaluation redshift.
             -- flat: bool, whether or not to consider only spatially flat cosmologies. 
                      If False (default), Omega_k will be sampled, else will set Omega_k=0.
-            -- perc: float in (0,1) (default 0.1), percentage variations around fiducial values for each parameter.
+            -- scale_planck18: float > 0 (default 6.0), scale factor to apply to nominal Planck18 errors to define parameter variation ranges.
             -- rmin,rmax: floats (default 30.0,150.0), min,max values in Mpc/h_fid for basis evaluation
             -- n_r: int (default 60), number of scales for basis evaluation
             -- mnu_max: float (default 0.3), maximum neutrino mass in eV [only relevant if cosmo=='nucdm']
@@ -49,7 +49,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.cosmo = setup.get('cosmo','wcdm')
         self.z_eval = setup.get('z_eval',0.0)
         self.flat = setup.get('flat',False)
-        self.perc = setup.get('perc',0.1)
+        self.scale_planck18 = setup.get('scale_planck18',6.0)
         self.mnu_max = setup.get('mnu_max',0.3) if self.cosmo in self.neutrino_cosmologies else None
 
         # stuff needed for plotting
@@ -60,7 +60,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.verbose = setup.get('verbose',True)
         self.logfile = setup.get('logfile',None)
 
-        self.keys_absolute = ['Ok','wDEa'] # keys for which perc should be treated as absolute variation
+        # self.keys_absolute = ['Ok','wDEa'] # keys for which perc should be treated as absolute variation
         
         if self.verbose:
             self.print_this('Agnostic emulator for BAO inference...',self.logfile)
@@ -164,11 +164,14 @@ class AgnosticEmulator(Utilities,MLUtilities):
     #############################################        
     def setup_fiducial_cosmology(self):
         """ Simple wrapper to setup fiducial cosmology. Sets following class attributes: 
-            -- pfid,co_fid,keys_vary,n_params,param_mins,param_maxs
+            -- pfid,err_fid,co_fid,keys_vary,n_params,param_mins,param_maxs
             Notes:
               (i) self.pfid contains fiducial values of *all* params, including those held fixed.
              (ii) self.keys_vary is a subset of self.pfid.keys(), since not all params are varied.
             (iii) self.param_mins,self.param_maxs are ordered by self.keys_vary.
+             (iv) self.err_fid contains approximate Planck18 1sigma errors for all relevant params described in self.pfid.
+                  These are scaled by self.scale_planck18 to define self.param_mins,self.param_maxs.
+                  (Neutrinos are ignored since the mnu range is set by self.mnu_max; wDEa error is arbitrarily set to 0.5).
         """
         if self.verbose:
             self.print_this('... setting up fiducial cosmology and sampling ranges',self.logfile)
@@ -176,6 +179,10 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.pfid = {'Om':0.3153,'h':0.6737,'As':np.exp(3.045)*1e-10,'ns':0.9649,'Ob':0.02237/0.6737**2,'Ok':0.0,
                      'wDE0':-1.0,'wDEa':0.0,
                      'N_ur':3.044,'N_ncdm':0,'m_ncdm':0.0}
+        self.err_fid = {'Om':0.0073,'h':0.0054,'As':0.014*np.exp(3.045)*1e-10,'ns':0.0042,
+                        'Ob':0.02237/0.6737**2*np.sqrt((0.00015/0.02237)**2 + 4*(0.0054/0.6737)**2),'Ok':0.0125,
+                        'wDE0':0.1,'wDEa':0.5,
+                        'N_ur':None,'N_ncdm':None,'m_ncdm':None}
 
         self.co_fid = Cosmology(Om=self.pfid['Om'],hubble=self.pfid['h'],As=self.pfid['As'],ns=self.pfid['ns'],Ob=self.pfid['Ob'],
                                 Ok=self.pfid['Ok'],wDE0=self.pfid['wDE0'],wDEa=self.pfid['wDEa'],
@@ -212,10 +219,12 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.param_mins = []
         self.param_maxs = []
         for key in self.keys_vary:
-            value = 1.0*self.pfid[key]
-            multiplier = 1.0 if key in self.keys_absolute else value
-            self.param_mins.append(value - self.perc*multiplier)
-            self.param_maxs.append(value + self.perc*multiplier)
+            # value = 1.0*self.pfid[key]
+            # multiplier = 1.0 if key in self.keys_absolute else value
+            # self.param_mins.append(value - self.perc*multiplier)
+            # self.param_maxs.append(value + self.perc*multiplier)
+            self.param_mins.append(self.pfid[key] - self.scale_planck18*self.err_fid[key])
+            self.param_maxs.append(self.pfid[key] + self.scale_planck18*self.err_fid[key])
 
         if self.cosmo in self.neutrino_cosmologies:
             ind_mncdm = self.keys_vary.index('m_ncdm')

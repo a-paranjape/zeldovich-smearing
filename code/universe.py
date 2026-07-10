@@ -46,404 +46,6 @@ class Constants(object):
 
 
 #######################################################################
-
-# class Utilities(object):
-#     """ Useful general-purpose functions. """
-
-#     def __init__(self):
-#         self.select_these = np.vectorize(self.select_these_scalar)
-#         self.select_not_these = np.vectorize(self.select_not_these_scalar)
-
-#     def heaviside(self,x):
-#         return 0.5*(np.sign(x)+1)
-
-#     def wpercentile(self,data,weights=None,percentile=50.0):
-#         """ Weighted percentiles of data set (flattened by default).
-#              If weights is None, calculates usual percentile using numpy.percentile().
-#              If weights is not None, should be of same shape as data containing weights (needn't be normalised).
-#              Default percentile is 50 (median), controlled by percentile kwarg.
-#              Returns (weighted) percentile of data, without interpolation.
-#         """
-#         data_flat = data.flatten()
-#         if weights is None:
-#             out = np.percentile(data_flat,percentile)
-#         else:
-#             if weights.shape !=  data.shape:
-#                 raise TypeError('Incompatible weights and data detected in wpercentiles()')
-#             wts = weights.flatten()
-
-#             sorter = np.argsort(data_flat)
-#             sorted_data = data_flat[sorter]
-#             sorted_wts = wts[sorter]
-
-#             cumsum = np.cumsum(sorted_wts)
-#             cutoff = 0.01*percentile*np.sum(sorted_wts)
-#             out = sorted_data[cumsum > cutoff][0]
-#             del wts,sorter,sorted_data,sorted_wts,cumsum,cutoff
-
-#         del data_flat
-#         gc.collect()
-
-#         return out
-
-#     ################################################
-#     # Laguerre function utilities
-#     ################################################
-#     def lag_prefac(self,k,l,x_fid):
-#         return sysp.comb(k,l,exact=True)*(-x_fid)**(k-l)
-    
-#     def lag_nu(self,k,x,x_fid):
-#         """ nu_{k}(x) from eqn A7 of Nikakhtar, Sheth & Zehavi (2021). """
-#         out = self.lag_prefac(k,0,x_fid)*np.ones_like(x)
-#         if k > 0:
-#             n = k//2 if (k % 2 == 0) else (k+1)//2
-#             for npr in range(1,n):
-#                 out += self.lag_prefac(k,2*npr-1,x_fid)*self.lag_mu_odd(npr,x)
-#                 out += self.lag_prefac(k,2*npr,x_fid)*self.lag_mu_even(npr,x)
-#             out += self.lag_prefac(k,2*n-1,x_fid)*self.lag_mu_odd(n,x)
-#             if (k % 2 == 0):
-#                 out += self.lag_prefac(k,2*n,x_fid)*self.lag_mu_even(n,x)        
-#         return out
-
-#     def lag_mu(self,k,x):
-#         """ Wrapper to calculate mu_k(x) of Nikakhtar, Sheth & Zehavi (2021)."""
-#         out = np.ones_like(x)
-#         if k > 0:
-#             if (k % 2 == 0):
-#                 n = k//2 
-#                 out = self.lag_mu_even(n,x)
-#             else:
-#                 n = (k+1)//2                
-#                 out = self.lag_mu_odd(n,x)
-#         return out
-
-#     def lag_mu_bars(self,k,y,ymin,res=1000):
-#         """ Volume integrals (3/y^3) int_ymin^y dx x^2 mu_k(x) and (5/y^5) int_ymin^y dx x^4 mu_k(x). 
-#              Expect int k, 1-d array y and scalar y_min.
-#              res: integer. Controls number of samples between ymin and largest y value.
-#         """
-#         Dy = y.max() - ymin
-#         mubar = np.zeros_like(y)
-#         mubarbar = np.zeros_like(y)
-#         ipos = np.where(y > ymin)[0]
-#         for i in ipos:
-#             xvals = np.linspace(ymin,y[i],int(res*(y[i]-ymin)/Dy))
-#             xvals_sq = xvals**2
-#             dx = xvals[1]-xvals[0]
-#             integrand = xvals_sq*self.lag_mu(k,xvals)
-#             mubar[i] = np.trapezoid(integrand,dx=dx)
-#             integrand *= xvals_sq
-#             mubarbar[i] = np.trapezoid(integrand,dx=dx)
-#         mubar *= 3/y**3
-#         mubarbar *= 5/y**5
-
-#         return mubar,mubarbar
-        
-#     def lag_mu_bars_explicit(self,k,y,ymin):
-#         """ Explicit volume integrals (3/y^3) int_ymin^y dx x^2 mu_k(x) and (5/y^5) int_ymin^y dx x^4 mu_k(x). 
-#              Expect int 0 <= k <= 4 , 1-d array y and scalar y_min.
-#         """
-#         if (k > 4):
-#             raise ValueError('Only 0 <= k <= 4 supported in Utilities.lag_mu_bars_explicit().')
-#         mubar = np.zeros_like(y)
-#         mubarbar = np.zeros_like(y)
-#         ymin_by_y3 = (ymin/y)**3
-#         ymin_by_y5 = (ymin/y)**5
-#         if k == 0:
-#             mubar = 1 - ymin_by_y3
-#             mubarbar = 1 - ymin_by_y5
-#         else:
-#             y2 = y**2
-#             ymin2 = ymin**2
-#             if (k % 2) == 0:
-#                 if k == 2:
-#                     mubar = 3*y2/5 + 3 - ymin_by_y3*(3*ymin2/5 + 3)
-#                     mubarbar = 5*y2/7 + 3 - ymin_by_y5*(5*ymin2/7 + 3)
-#                 else:
-#                     y4 = y2**2
-#                     ymin4 = ymin2**2
-#                     mubar = 3*y4/7 + 6*y2 + 15 - ymin_by_y3*(3*ymin4/7 + 6*ymin2 + 15)
-#                     mubarbar = 5*y4/9 + 50*y2/7 + 15 - ymin_by_y5*(5*ymin4/9 + 50*ymin2/7 + 15)
-#             else:
-#                 E1 = sysp.erf(y/np.sqrt(2))
-#                 E2 = np.sqrt(2/np.pi)*np.exp(-y2/2)
-#                 E1min = sysp.erf(ymin/np.sqrt(2))
-#                 E2min = np.sqrt(2/np.pi)*np.exp(-ymin2/2)
-#                 y3 = y2*y
-#                 y5 = y3*y2
-#                 Ebar220 = (3/y3)*(E1 - E1min - (y*E2 - ymin*E2min)) 
-#                 Ebar420 = (5/y5)*(3*(E1 - E1min) - (y*E2*(y2+3) - ymin*E2min*(ymin2+3))) 
-#                 Ebar221 = (3*y2/5)*Ebar420
-#                 Ebar421 = (5/y5)*(15*(E1 - E1min) - (y*E2*(y2**2+5*y2+15) - ymin*E2min*(ymin2**2+5*ymin2+15))) 
-
-#                 Ebar210 = 0.5*((3/y3)*(y2*E1 - ymin2*E1min) - Ebar220)
-#                 Ebar211 = 0.25*((3/y3)*(y2**2*E1 - ymin2**2*E1min) - Ebar221)
-#                 Ebar410 = 0.25*((5/y5)*(y2**2*E1 - ymin2**2*E1min) - Ebar420)
-#                 Ebar411 = (1/6.0)*((5/y5)*(y2**3*E1 - ymin2**3*E1min) - Ebar421)
-
-#                 if k == 1:
-#                     mubar = Ebar210 + Ebar211 + Ebar220
-#                     mubarbar = Ebar410 + Ebar411 + Ebar420
-#                 else:
-#                     Ebar222 = (3*y2/5)*Ebar421
-#                     Ebar422 = (5/y5)*(105*(E1 - E1min) - (y*E2*(y2**3 + 7*y2**2+35*y2+105) 
-#                                                           - ymin*E2min*(ymin2**3 + 7*ymin2**2+35*ymin2+105))) 
-                    
-#                     Ebar212 = (1/6.0)*((3/y3)*(y2**3*E1 - ymin2**3*E1min) - Ebar222)
-#                     Ebar412 = (1/8.0)*((5/y5)*(y2**4*E1 - ymin2**4*E1min) - Ebar422)
-
-#                     mubar = 3*Ebar210 + 6*Ebar211 + Ebar212 + 5*Ebar220 + Ebar221
-#                     mubarbar = 3*Ebar410 + 6*Ebar411 + Ebar412 + 5*Ebar420 + Ebar421
-            
-#         return mubar,mubarbar
-
-
-#     def lag_mu_even(self,n,x):
-#         """ mu_{2n}(x) from eqn 7 of Nikakhtar, Sheth & Zehavi (2021). """
-#         f = sysp.factorial2(2*n,exact=True)*sysp.genlaguerre(n,0.5)
-#         out = f(-x**2/2)
-#         return out
-    
-#     def lag_mu_odd(self,n,x):
-#         """ mu_{2n-1}(x) from eqn 7 of Nikakhtar, Sheth & Zehavi (2021). """
-#         out = sysp.factorial2(2*n-1,exact=True)*np.sqrt(np.pi/2)
-#         out = out*self.half_lag_recur(n,x) # note x not -x^2/2
-#         return out
-    
-#     def half_lag_recur(self,n,x):
-#         """ Calculate L^(1/2)_(n-1/2)(-x^2/2) recursively. """
-#         x2by2 = x**2/2
-#         if n < 0:
-#             raise ValueError('Only n >= 0 allowed in half_lag_recur()')
-#         if n==0:
-#             return np.sqrt(1/np.pi/x2by2)*sysp.erf(np.sqrt(x2by2))
-#         elif n==1:
-#             return (2*x2by2 + 1)*self.half_lag_recur(0,x) + (2/np.pi)*np.exp(-x2by2)
-#         else:
-#             # b L^(a)_(b)(z) = (a+2b-1-z)*L^(a)_(b-1)(z) - (a+b-1)*L^(a)_(b-2)(z)
-#             # a=1/2, b=n-1/2, z=-x^2/2
-#             # (n-1/2)L^(1/2)_(n-1/2)(-x^2/2) 
-#             #  = (1/2+2n-1-1+x^2/2)L^(1/2)_(n-1-1/2)(-x^2/2) - (1/2+n-1/2-1)L^(1/2)_(n-2-1/2)(-x^2/2)
-#             #  = (2n-3/2+x^2/2)*L^(1/2)_(n-1-1/2)(-x^2/2) - (n-1)*L^(1/2)_(n-2-1/2)(-x^2/2)
-#             out = (2*n-1.5+x2by2)*self.half_lag_recur(n-1,x)
-#             out -= (n-1)*self.half_lag_recur(n-2,x)
-#             out /= (n-0.5)
-#             return out
-#     ################################################
-        
-#     def svd_inv(self,cov,return_eig=False):
-#         """ Convenience function to calculate inverse of square matrix using SVD. 
-#             Returns inverse and determinant of input matrix and, if requested, array of eigenvalues.
-#         """
-#         U,s,Vh = linalg.svd(cov)
-#         invcov = np.dot(Vh.T,np.dot(np.diag(1.0/s),U.T))
-#         if not return_eig:
-#             return invcov,np.prod(s)
-#         else:
-#             return invcov,np.prod(s),s
-#     ################################################
-
-
-#     # def polyfit_custom(self,x,y,deg,sig2=None,start=0):
-#     #     """ Polynomial fit of degree deg to data y at locations x.
-#     #         Optionally pass squared errors sig2 on y.
-#     #         Minimises chi2 = sum_i (y_i - p(x_i))^2 / sig2_i
-#     #         with p(x) = sum_alpha a[alpha]*x^alpha
-#     #         for alpha=start..deg.
-#     #         Returns minimum variance estimator a[alpha] 
-#     #         and covariance matrix C[alpha,beta].
-
-#     #         Not very well tested, so use with care. """
-
-#     #     Y = np.zeros(deg+1-start,dtype=float) 
-
-#     #     # Matrix
-#     #     F = np.zeros((deg+1-start,deg+1-start),dtype=float)
-
-#     #     if sig2 is None:
-#     #         sig2 = np.ones(x.size,dtype=float)
-
-#     #     for alpha in range(start,deg+1):
-#     #         Y[alpha-start] = np.sum(y*(x**(alpha))/sig2)
-#     #         for beta in range(start,deg+1):
-#     #             F[alpha-start,beta-start] = np.sum(x**(alpha+beta)/sig2)
-#     #             F[beta-start,alpha-start] = F[alpha-start,beta-start]
-
-#     #     Y = Y.T
-#     #     U,s,Vh = linalg.svd(F)
-#     #     Cov = np.dot(Vh.T,np.dot(np.diag(1.0/s),U.T))
-#     #     a_minVar = Cov.dot(Y)
-
-#     #     return np.squeeze(np.asarray(a_minVar)),np.asarray(Cov)
-
-
-#     # def gen_latin_hypercube(self,Nsamp=10,dim=2,symmetric=True,param_mins=None,param_maxs=None,
-#     #                         rng=None):
-#     #     """ Generate Latin hypercube sample (symmetric by default). 
-#     #          Either param_mins and param_maxs should both be None or both be array-like of shape (dim,). 
-#     #         -- rng: either None or instance of numpy.random.RandomState(). Default None.
-#     #          Code from FirefoxMetzger's answer at
-#     #          https://codereview.stackexchange.com/questions/223569/generating-latin-hypercube-samples-with-numpy
-#     #          See https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.49.7292&rep=rep1&type=pdf
-#     #          for some ideas reg utility of symmetric Latin hypercubes.
-#     #          Returns array of shape (Nsamp,dim) with values in range (0,1) or respective minimum to maximum values.
-#     #     """
-#     #     if (param_mins is not None): 
-#     #         if (param_maxs is None):
-#     #             raise TypeError("param_mins and param_maxs should both be None or array-like of shape (dim,)")
-#     #         if len(param_mins) != dim:
-#     #             raise TypeError("len(param_mins) should be equal to dim")
-#     #     if (param_maxs is not None) :
-#     #         if(param_mins is None):
-#     #             raise TypeError("param_mins and param_maxs should both be None or array-like of shape (dim,)")
-#     #         if len(param_maxs) != dim:
-#     #             raise TypeError("len(param_maxs) should be equal to dim")
-
-#     #     rng_use = rng if rng is not None else np.random.RandomState()
-
-#     #     if symmetric:
-#     #         available_indices = [set(range(Nsamp)) for _ in range(dim)]
-#     #         samples = []
-
-#     #         # if Nsamp is odd, we have to choose the midpoint as a sample
-#     #         if Nsamp % 2 != 0:
-#     #             k = Nsamp//2
-#     #             samples.append([k] * dim)
-#     #             for idx in available_indices:
-#     #                 idx.remove(k)
-
-#     #         # sample symmetrical pairs
-#     #         for _ in range(Nsamp//2):
-#     #             sample1 = list()
-#     #             sample2 = list()
-
-#     #             for idx in available_indices:
-#     #                 k = rng_use.choice(np.array(list(idx)),size=1,replace=False)[0]# random.sample(idx, 1)[0]
-#     #                 sample1.append(k)
-#     #                 sample2.append(Nsamp-1-k)
-#     #                 idx.remove(k)
-#     #                 idx.remove(Nsamp-1-k)
-
-#     #             samples.append(sample1)
-#     #             samples.append(sample2)
-
-#     #         samples = np.array(samples)/(1.0*Nsamp)
-#     #     else:
-#     #         samples = np.array([rng_use.permutation(Nsamp) for i in range(dim)])/(1.0*Nsamp)
-#     #         samples = samples.T
-
-#     #     if (param_mins is not None):
-#     #         for d in range(dim):
-#     #             samples[:,d] *= (param_maxs[d] - param_mins[d])
-#     #             samples[:,d] += param_mins[d]
-
-#     #     return samples
-
-
-#     # def model_poly(self,x,params):
-#     #     """ Polynomial in x, of degree n = len(params)-1. 
-#     #         Expect x to be scalar or numpy array (arbitrary dimensions).
-#     #         Expect params to be list ordered as a_0,a_1..a_n
-#     #         where y = sum_i a_i x**i.
-#     #         Returns array y of shape x.shape.
-#     #     """
-#     #     if len(params) == 1:
-#     #         out = params[0]
-#     #     else:
-#     #         out = np.sum(np.array([params[i]*x**i for i in range(len(params))]),axis=0)
-#     #     return out
-
-
-#     ############################################################
-#     def time_this(self,start_time,logfile=None):
-#         totsec = time() - start_time
-#         minutes = int(totsec/60)
-#         seconds = totsec - 60*minutes
-#         self.print_this("{0:d} min {1:.2f} seconds\n".format(minutes,seconds),logfile)
-#         return
-#     ############################################################
-
-
-#     def write_to_file(self,filestring,seq):
-#         """ Opens filestring for appending and writes tab-separated list seq to it. """
-#         with open(filestring,'a') as f:
-#             s = "{0:.6e}".format(seq[0])
-#             for i in range(1,len(seq)):
-#                 s += "\t" + "{0:.6e}".format(seq[i])
-#             s += "\n"
-#             f.write(s)
-#         return
-
-
-#     def write_structured(self,filestring,recarray,dlmt=' '):
-#         """ Opens filestring for appending and writes 
-#         rows of structured array recarray to it.
-#         """
-#         with open(filestring,'a') as f:
-#             for row in recarray:
-#                 f.write(dlmt.join([str(item) for item in row]))
-#                 f.write('\n')
-#         return
-
-
-#     def writelog(self,logfile,strng,overwrite=False):
-#         """ Convenience function for pipe-safety. """
-#         app_str = 'w' if overwrite else 'a'
-#         with open(logfile,app_str) as g:
-#             g.write(strng)
-#         return
-
-#     # def time_this_log(self,start_time,logfile):
-#     #     totsec = time() - start_time
-#     #     minutes = int(totsec/60)
-#     #     seconds = totsec - 60*minutes
-#     #     self.writelog(logfile,"{0:d} min {1:.2f} seconds\n".format(minutes,seconds))
-#     #     return
-
-
-#     ############################################################
-#     def print_this(self,print_string,logfile,overwrite=False):
-#         """ Convenience function for printing to logfile or stdout."""
-#         if logfile is not None:
-#             self.writelog(logfile,print_string+'\n',overwrite=overwrite)
-#         else:
-#             print(print_string)
-#         return
-#     ############################################################
-
-
-#     ############################################################
-#     def status_bar(self,n,ntot,freq=100,text='done'):
-#         """ Print status bar with user-defined text and frequency. """
-#         if freq > ntot:
-#             freq = ntot
-#         if ((n+1) % int(1.0*ntot/freq) == 0):
-#             frac = (n+1.)/ntot
-#             sys.stdout.write('\r')
-#             sys.stdout.write("[%-20s] %.f%% " % ('.'*int(frac*20),100*frac) + text)
-#             sys.stdout.flush()
-#         if n==ntot-1: self.print_this('',None)
-#         return
-#     ############################################################
-
-#     def select_these_scalar(self,elmt,wanted_elmt):
-#         """ Select elements from elmt which belong to wanted_elmt.
-#              For fast evaluation with large arrays, ensure wanted_elmt is
-#              a set by applying set() to the array.
-#              Returns boolean array of shape elmt.
-#         """
-#         return elmt in wanted_elmt
-
-#     def select_not_these_scalar(self,elmt,wanted_elmt):
-#         """ Select elements from elmt which *do not* belong to wanted_elmt.
-#              For fast evaluation with large arrays, ensure wanted_elmt is
-#              a set by applying set() to the array.
-#              Returns boolean array of shape elmt.
-#         """
-#         return elmt not in wanted_elmt
-
-#######################################################################
-
 class Cosmology(Constants,Utilities):
     """ Useful functions for cosmology and extra-Galactic astrophysics. """
     ############################################################
@@ -543,8 +145,31 @@ class Cosmology(Constants,Utilities):
             if self.As is not None:
                 self.print_this("... ... detected As normalisation, will override sig8.",self.logfile)
 
-        self.Odm = self.Om - self.Ob # dark matter density parameter
-        self.Orad = 4.158e-5*(self.Tcmb/2.7255)**4/self.hubble**2 # radiation density parameter
+        self.Onu = 0.0 # density of present-day non-relativistic neutrinos
+        self.z_nr_nu = -1.0 # redshift at which last neutrino became non-relativistic (default -1 means neutrinos always relativistic)
+        self.Tnu = (4/11.)**(1/3.)*self.Tcmb*8.617e-5 # present-epoch neutrino temperature in eV.
+        if self.N_ncdm > 0:
+            # account for present-epoch non-relativistic neutrinos
+            # throughout, assume all neutrinos were relativistic at decoupling
+            m_nr = 0.0
+            if self.N_ncdm == 1:
+                if self.m_ncdm > self.Tnu:
+                    m_nr += self.m_ncdm
+                    self.z_nr_nu = self.m_ncdm/self.Tnu
+            else:
+                for i in range(self.N_ncdm):
+                    if self.m_ncdm[i] > self.Tnu:
+                        m_nr += self.m_ncdm[i]
+                self.z_nr_nu = np.max(self.m_ncdm)/self.Tnu
+            self.Onu = m_nr/93.14/self.hubble**2
+        
+        self.Ocdm = self.Om - self.Ob - self.Onu # dark matter density parameter
+        # rho_gamma = 4.1719e-13*(self.Tcmb/2.7255)**4 # erg cm-3
+        # rhoc_0 = 1.6902e-8*self.hubble**2 # erg cm-3
+        # ratio = Omega_gamma = 2.468e-5*(self.Tcmb/2.7255)**4/self.hubble**2
+        self.Orad = 2.468e-5*(1 + (7/8.)*(4/11.)**(4/3.)*self.N_ur)*(self.Tcmb/2.7255)**4/self.hubble**2    # radiation density parameter
+        self.dOrad = 2.468e-5*(7/8.)*(4/11.)**(4/3.)*(3.044-self.N_ur)*(self.Tcmb/2.7255)**4/self.hubble**2 # correction needed when all neutrinos relativistic
+        # self.Orad = 4.158e-5*(self.Tcmb/2.7255)**4/self.hubble**2 
         self.OLam = 1.0 - self.Om - self.Orad - self.Ok # cosmological constant (or dark energy) parameter
 
         # flag to switch to flat-space functions. can speed things up in some places.
@@ -568,7 +193,7 @@ class Cosmology(Constants,Utilities):
                   'n_s': self.ns, 
                   'h': self.hubble,
                   'Omega_b': self.Ob,
-                  'Omega_cdm': self.Odm,
+                  'Omega_cdm': self.Ocdm,
                   'Omega_k': self.Ok,
                   'T_cmb': self.Tcmb,
                   'N_ur': self.N_ur,
@@ -996,8 +621,19 @@ class Cosmology(Constants,Utilities):
         
     ############################################################
     def EHub(self,z):
-        """ H(z) / H0. """ 
-        Ez = self.Om*(1+z)**3 + self.Orad*(1+z)**4 + self.Ok*(1+z)**2 + self.OLam*(1+z)**(3*(1+self.wDE0))
+        """ H(z) / H0. """
+        # massive neutrinos handled as sharp transition from relativistic to non-relativistic at single redshift self.z_nr_nu.
+        Ez = (self.Om - self.Onu)*(1+z)**3 + self.Orad*(1+z)**4 + self.Ok*(1+z)**2 + self.OLam*(1+z)**(3*(1+self.wDE0))
+        if self.N_ncdm > 0:
+            # in this case self.N_ur was not 3.044 when setting self.Orad, so need to correct for it at high-z and account for non-relativistic neutrino at low-z.
+            if np.isscalar(z):
+                dEz = self.Onu*(1+z)**3 if (z < self.z_nr_nu) else self.dOrad*(1+z)**4
+            else:
+                cond_nr = (z < self.z_nr_nu)
+                dEz = np.zeros_like(z)
+                dEz[cond_nr] = self.Onu*(1+z[cond_nr])**3
+                dEz[~cond_nr] = self.dOrad*(1+z[~cond_nr])**4
+            Ez += dEz
         Ez = np.sqrt(Ez)
         # can be generalised to w0,wa cosmologies.
         return Ez

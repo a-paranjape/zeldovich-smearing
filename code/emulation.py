@@ -65,7 +65,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         if self.verbose:
             self.print_this('Agnostic emulator for BAO inference...',self.logfile)
 
-        if self.cosmo in (['w0wacdm'] + self.neutrino_cosmologies):
+        if self.cosmo in ['w0wacdm']:
             raise NotImplementedError(self.cosmo+' not yet implemented!')
             
         # BiSequential basis setup

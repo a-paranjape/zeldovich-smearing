@@ -949,7 +949,7 @@ class Cosmology(Constants,Utilities):
              Normalized to be 1/(1+z) in matter domination.
         """
         a = 1.0/(1+z)
-        if self.FLAT & (np.fabs(1+self.wDE0) <= self.NOTSOTINY): 
+        if self.FLAT & (np.fabs(1+self.wDE0) <= self.NOTSOTINY) & (self.N_ncdm == 0): 
             acube = a**3
             hbyh0 = self.EHub(z)
             g = hbyh0/np.sqrt(self.Om)*a**2.5*sysp.hyp2f1(5.0/6,1.5,11.0/6,-acube*(1.0/self.Om-1))
@@ -972,7 +972,7 @@ class Cosmology(Constants,Utilities):
         acube = a**3
         hbyh0 = self.EHub(z)
 
-        if self.FLAT & (np.fabs(1+self.wDE0) <= self.NOTSOTINY): 
+        if self.FLAT & (np.fabs(1+self.wDE0) <= self.NOTSOTINY) & (self.N_ncdm == 0): 
             dlnHdlna = -1.5/(1+acube*(1/self.Om-1))
         else:
             OkbyOm = self.Ok/self.Om

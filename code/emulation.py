@@ -234,7 +234,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.cosmo_latex_list = {'lcdm':"$\\Lambda$CDM",'lcdm_flat':"flat $\\Lambda$CDM",
                                  'wcdm':"$w$CDM",'wcdm_flat':"flat $w$CDM",
                                  'w0wacdm':"$(w_{{0}},w_{{a}})$CDM",'wcdm_flat':"flat $(w_{{0}},w_{{a}})$CDM",
-                                 'nucdm':"$\nu\\Lambda$CDM",'ncdm_flat':"flat $\nu\\Lambda$CDM"}
+                                 'nucdm':"$\\nu\\Lambda$CDM",'ncdm_flat':"flat $\\nu\\Lambda$CDM"}
         self.cosmo_latex = self.cosmo_latex_list[self.cosmo+self.flat_str]
 
         # individual parameter labels (useful for getdist)

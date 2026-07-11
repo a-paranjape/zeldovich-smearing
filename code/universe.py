@@ -140,6 +140,9 @@ class Cosmology(Constants,Utilities):
 
         if np.fabs(self.wDEa) > self.NOTSOTINY:
             raise NotImplementedError("wa dependence not yet implemented!")
+
+        if (self.N_ncdm > 0) & (self.As is None) & (self.z_eval > 0.0):
+            raise Exception("Cannot currently handle the combination (N_ncdm > 0, As = None, z_eval > 0). Change one of these and try again.")
         
         if self.verbose:
             if self.As is not None:

@@ -310,7 +310,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
             file_xi = xi_dir + '/xilin.txt'
         
         if self.verbose:
-            self.print_this('Generating/reading sample from :'+out_dir,self.logfile)
+            self.print_this('Generating/reading sample from: '+out_dir,self.logfile)
             
         if (not force) & Path(out_dir).is_dir():
             if self.verbose:

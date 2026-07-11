@@ -156,14 +156,14 @@ class Cosmology(Constants,Utilities):
             # throughout, assume all neutrinos were relativistic at decoupling
             m_nr = 0.0
             if self.N_ncdm == 1:
-                if self.m_ncdm > self.Tnu:
+                if self.m_ncdm > 3.15*self.Tnu: # see sec II of arXiv:2410.00090 for discussion of factor 3.15
                     m_nr += self.m_ncdm
-                    self.z_nr_nu = self.m_ncdm/self.Tnu
+                    self.z_nr_nu = 113*self.m_ncdm/0.06 - 1.0 # eqn 2.1 of arXiv:2410.00090
             else:
                 for i in range(self.N_ncdm):
-                    if self.m_ncdm[i] > self.Tnu:
+                    if self.m_ncdm[i] > 3.15*self.Tnu:
                         m_nr += self.m_ncdm[i]
-                self.z_nr_nu = np.max(self.m_ncdm)/self.Tnu
+                self.z_nr_nu = 113*np.max(self.m_ncdm)/0.06 - 1.0 # NEED BETTER DEFINITION
             self.Onu = m_nr/93.14/self.hubble**2
         
         self.Ocdm = self.Om - self.Ob - self.Onu # dark matter density parameter

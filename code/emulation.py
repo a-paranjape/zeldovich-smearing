@@ -224,9 +224,12 @@ class AgnosticEmulator(Utilities,MLUtilities):
             self.param_maxs.append(self.pfid[key] + self.scale_planck18*self.err_fid[key])
 
         if self.cosmo in self.neutrino_cosmologies:
+            self.mnu_min = 0.06*(1+self.z_eval)/113 # eV; see eqn 2.1 of arXiv:2410.00090
+            if self.verbose:
+                self.print_this('... setting minimum varied m_ncdm = {0:.2f} meV, which becomes non-relativistic at requested z = {1:.3f}'
+                                .format(1e3*self.mnu_min,self.z_eval),self.logfile)
             ind_mncdm = self.keys_vary.index('m_ncdm')
-            self.param_mins[ind_mncdm] = 1e-4
-            print('!WARNING!: need to figure out how to set minimum neutrino mass! Currently hard-coded to {0:.2f} meV'.format(1e3*self.param_mins[ind_mncdm]))
+            self.param_mins[ind_mncdm] = self.mnu_min
             self.param_maxs[ind_mncdm] = self.mnu_max
             
         return

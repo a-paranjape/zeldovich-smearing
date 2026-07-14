@@ -450,6 +450,8 @@ class AgnosticEmulator(Utilities,MLUtilities):
         sigv2 = np.trapezoid(Dlin_int/self.ktab_int**2,dx=self.dlnk_int)/3.0
         sigv2_frac = np.trapezoid(Dlin_int[self.cond_k]/self.ktab_int[self.cond_k]**2,dx=self.dlnk_int)/3.0
 
+        # for neutrino cosmologies, sigv is directly provided at evaluation redshift.
+        # for others, multiply sigv by growth
         sigv = np.sqrt(sigv2)
         if self.cosmo not in self.neutrino_cosmologies:
             sigv *= growth

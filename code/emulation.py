@@ -368,6 +368,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
                 if include_fiducial & (n == n_samp-1):
                     pdict['N_ur'] = self.pfid['N_ur']
                     pdict['N_ncdm'] = self.pfid['N_ncdm']
+                    print(pdict['N_ncdm'])
 
                 try:
                     co = Cosmology(Om=pdict['Om'],hubble=pdict['h'],As=pdict['As'],ns=pdict['ns'],Ob=pdict['Ob'],
@@ -380,7 +381,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
                     # for neutrino cosmologies, xilin is directly provided at evaluation redshift.
                     # for others, multiply by growth**2
                     xi_calc = co.calc_xi_lin(self.rvals*pdict['h']/self.pfid['h']) # use Mpc/h in varied cosmology
-                    if self.cosmo not in self.neutrino_cosmologies:
+                    if co.N_ncdm == 0:
                         xi_calc *= growth**2
                     xilin[n] = xi_calc
                     
@@ -453,7 +454,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         # for neutrino cosmologies, sigv is directly provided at evaluation redshift.
         # for others, multiply sigv by growth
         sigv = np.sqrt(sigv2)
-        if self.cosmo not in self.neutrino_cosmologies:
+        if co.N_ncdm == 0:
             sigv *= growth
         fv = sigv2_frac/(sigv2 + co.TINY)
 

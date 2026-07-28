@@ -221,7 +221,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     L_Max = 3 # 1,2 or 3
     sdbmc = True # default True. if False, dynamically set sigma = sqrt(2)*sigv for consistency with 'no sdbmc'.
     model_AP = True # default True. if True, model effects of anisotropy due to wrong fiducial cosmology
-    # strong_prior = False # default False. if True, assume sampled params are cosmological+sdbmc (requires emulator), else agnostic+sdbmc.
+    strong_prior = False # default False. if True, assume sampled params are cosmological+sdbmc (requires emulator), else agnostic+sdbmc.
     # emulator_setup = {} # needed when strong_prior=True, to initialize AgnosticEmulator.
     #                     # keys subset of [out_stem,cosmo,flat,z_eval,scale_planck18].
     #                     # other setup keys shouldn't be touched.

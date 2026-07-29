@@ -15,7 +15,7 @@ import scipy.optimize as optimize
 from cobaya.likelihood import Likelihood
 from cobaya.theory import Theory
 
-# from emulation import AgnosticEmulator
+from emulation import AgnosticEmulator
 
 #########################################
 class ZeldovichSmearingLike(Likelihood,Utilities):
@@ -214,7 +214,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     r_max = 150.0 # Mpc/h
     n_r = 100 # 100 gives LP convergence error ~0.1%, i.e. 3x smaller than DESI expectation
     acc_vals = {'low':8.0,'mid':24.0,'high':48.0}
-    accuracy = 'low'
+    accuracy = 'mid' # default 'mid', gives <~3% error on quadrupole
     scales_file = None # needed for reading scales
     # svals = None # should be specified as 1-d array of values in Mpc/h_fid
     Rpiv2 = 2.5**2 # fixed pivot of 2.5Mpc/h_fid
@@ -222,11 +222,11 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     sdbmc = True # default True. if False, dynamically set sigma = sqrt(2)*sigv for consistency with 'no sdbmc'.
     model_AP = True # default True. if True, model effects of anisotropy due to wrong fiducial cosmology
     strong_prior = False # default False. if True, assume sampled params are cosmological+sdbmc (requires emulator), else agnostic+sdbmc.
-    # emulator_setup = {} # needed when strong_prior=True, to initialize AgnosticEmulator.
-    #                     # keys subset of [out_stem,cosmo,flat,z_eval,scale_planck18].
-    #                     # other setup keys shouldn't be touched.
-    #                     # leave empty to use default setup (flat LCDM at z_eval=0.8, scale 6.0).
-    # emulator_model_name = 'shallow' # needed when strong_prior=True, to instantiate emulator ensemble. default 'shallow' (don't change unless others have been trained.)
+    emulator_setup = {} # needed when strong_prior=True, to initialize AgnosticEmulator.
+                        # keys subset of [out_stem,cosmo,flat,z_eval,scale_planck18].
+                        # other setup keys shouldn't be touched.
+                        # leave empty to use default setup (flat LCDM at z_eval=0.8, scale 6.0).
+    emulator_model_name = 'shallow' # needed when strong_prior=True, to instantiate emulator ensemble. default 'shallow' (don't change unless others have been trained.)
     #########################################
     def initialize(self):
         Utilities.__init__(self)
@@ -307,16 +307,16 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         self.svals_fine = np.linspace(self.svals.min(),self.svals.max(),int((self.svals.max()-self.svals.min())/self.ds_fine))
         self.ds_fine = self.svals_fine[1]-self.svals_fine[0]
 
-        # ##########################
-        # # Emulator setup
-        # ##########################
-        # if self.strong_prior:
-        #     em_setup = {'out_stem':'../emulation/emulators/','cosmo':'lcdm','flat':True,'z_eval':0.8,'scale_planck18':6.0,'verbose':False}
-        #     for key in em_setup.keys():
-        #         if key in self.emulator_setup.keys():
-        #             em_setup[key] = self.emulator_setup[key] # switch to user-defined value if requested
-        #     self.agem = AgnosticEmulator(setup=em_setup)
-        #     self.FwdEmulator = self.agem.load(invert=False,model_name=self.emulator_model_name)
+        ##########################
+        # Emulator setup
+        ##########################
+        if self.strong_prior:
+            em_setup = {'out_stem':'../emulation/emulators/','cosmo':'lcdm','flat':True,'z_eval':0.8,'scale_planck18':6.0,'verbose':False}
+            for key in em_setup.keys():
+                if key in self.emulator_setup.keys():
+                    em_setup[key] = self.emulator_setup[key] # switch to user-defined value if requested
+            self.agem = AgnosticEmulator(setup=em_setup)
+            self.FwdEmulator = self.agem.load(invert=False,model_name=self.emulator_model_name)
         
     #########################################
 
@@ -721,32 +721,35 @@ class ZeldovichSmearingTheory(Theory,Utilities):
     # see https://cobaya.readthedocs.io/en/latest/theories_and_dependencies.html
     def calculate(self,state, want_derived=True, **params_values_dict):
         if self.strong_prior:
-            raise NotImplementedError('Sorry, strong prior not yet implemented!')
-            # # in this case, sampled params contain self.agem.keys_vary and sdbmc
-            # sampled_keys = list(params_values_dict.keys())
-            # params_dict = {}
+            # in this case, sampled params contain self.agem.keys_vary and sdbmc+nuisance
+            sampled_keys = list(params_values_dict.keys())
+            params_dict = {}
             
-            # # extract and set values of (subset of) sdbmc and nuisance params
-            # for key in ['b','B1st','Bvst','sigma','AMC','qbar2','qbar4']:
-            #     if key in sampled_keys:
-            #         params_dict[key] = params_values_dict[key]
+            # extract and set values of (subset of) sdbmc and nuisance params
+            for key in ['b','B1st','Bvst','sigma','AMC','qbar2','qbar4']:
+                if key in sampled_keys:
+                    params_dict[key] = params_values_dict[key]
                     
-            # # extract cosmological params [assumes params_values_dict.keys() contains all of self.agem.keys_vary]
-            # cosmological = self.agem.cv([params_values_dict[key] for key in self.agem.keys_vary])
+            # extract cosmological params [assumes params_values_dict.keys() contains all of self.agem.keys_vary]
+            cosmological = self.agem.cv([params_values_dict[key] for key in self.agem.keys_vary])
             
-            # # emulate agnostic params
-            # agnostic = self.FwdEmulator.predict(cosmological)
+            # emulate agnostic params
+            agnostic = self.FwdEmulator.predict(cosmological)
 
-            # # set values of agnostic params in dict
-            # for a in range(len(self.agem.n_agnostic)):
-            #     params_dict[self.agem.keys_agnostic[a]] = agnostic[a,0]
-            # params_dict['beta'] = params_dict['f']/params_dict['b']
-            # # note: params_dict['f'] will be ignored
+            # set values of agnostic params in dict
+            for a in range(len(self.agem.n_agnostic)):
+                params_dict[self.agem.keys_agnostic[a]] = agnostic[a,0]
+            params_dict['beta'] = params_dict['f']/params_dict['b']
+            # note: params_dict['f'] will be ignored
+
+            # adjust for fact that emulator assumed unit-bias tracers
+            for key in self.w_names:
+                params_dict[key] *= params_dict['b']**2 
         else:
             # in this case, sampled params contain beta,sigv,{w_m}[,DaAP][,fv] and sdbmc
             params_dict = copy.deepcopy(params_values_dict)
 
-        keys = params_dict.keys()
+        # keys = params_dict.keys()
         f = params_dict['beta']*params_dict['b'] 
         w_m = np.array([params_dict[key] for key in self.w_names])
         peak,dip,LP,ZC = self.calc_linearscales(w_m)
@@ -813,7 +816,7 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         params_dict = copy.deepcopy(params_values_dict)
         Rpk2_use = self.Rpiv2 if Rpk2 is None else 1.0*Rpk2
 
-        keys = params_dict.keys()
+        # keys = params_dict.keys()
 
         # proto-halo condition
         params_dict['Bvst'] = 0.0

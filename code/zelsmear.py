@@ -2,6 +2,7 @@ import numpy as np
 import sys
 
 from paths import *
+from pathlib import Path
 
 sys.path.append(ML_Path)
 from mlalgos import BiSequential
@@ -29,6 +30,10 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
     L_Max = 3 # 1,2 or 3
     modify_data = False
     include_Sig2obs = False
+    derived_list = ['f','peak','LP','ZC'] # EXTEND AS NEEDED
+    strong_prior = False # default False. if True, assume sampled params are cosmological+sdbmc (requires emulator), else agnostic+sdbmc.
+    include_emulator_error = False # default False. used if strong_prior=True, to decide whether or not to account for emulator error.
+    N_emulator_samples = 10 # default 10. Number of error samples to use for averaging over emulator error. Only used if include_emulator_error=True
     #########################################
     def initialize(self):
         Utilities.__init__(self)
@@ -81,8 +86,6 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
         if np.any(linalg.eigvals(self.cov_data) <= 0.0):
             raise ValueError('non-positive definite covariance matrix detected')
         self.L = linalg.cholesky(self.cov_data,lower=True) # so C = L L^T
-
-        self.derived_list = ['f','peak','LP','ZC'] # EXTEND AS NEEDED
     #########################################
 
     #########################################
@@ -187,11 +190,8 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
     #########################################
     
     #########################################
-    def logp(self,**params_values_dict):
-        """ Calculate logp = -0.5*chi2 and set derived params. """
-
-        for par in self.derived_list:
-            params_values_dict['_derived'][par] = self.provider.get_param(par)
+    def calc_logp(self):
+        """ Calculate logp = -0.5*chi2. """
         
         model = self.provider.get_model()*self.rescale
         if self.include_Sig2obs:
@@ -203,6 +203,42 @@ class ZeldovichSmearingLike(Likelihood,Utilities):
     #########################################
 
 
+    #########################################
+    def logp(self,**params_values_dict):
+        """ Calculate logp = -0.5*chi2 and set derived params. """
+
+        for par in self.derived_list:
+            params_values_dict['_derived'][par] = self.provider.get_param(par)
+
+        if self.strong_prior & self.include_emulator_error:
+            # average over noise realisations
+            logp_n = np.zeros(self.N_emulator_samples)
+            for n in range(self.N_emulator_samples):
+                logp_n[n] = self.calc_logp()
+            logp_eval = np.log(np.mean(np.exp(logp_n)))
+        else:
+            logp_eval = self.calc_logp()
+            
+        return logp_eval
+    #########################################
+
+    # #########################################
+    # def logp(self,**params_values_dict):
+    #     """ Calculate logp = -0.5*chi2 and set derived params. """
+
+    #     for par in self.derived_list:
+    #         params_values_dict['_derived'][par] = self.provider.get_param(par)
+        
+    #     model = self.provider.get_model()*self.rescale
+    #     if self.include_Sig2obs:
+    #         model[:self.L_Max] /= self.rescale
+    #     residual = self.data - model
+    #     z = linalg.cho_solve((self.L,True),residual) # solves (L L^T) z = residual or z = C^-1 residual
+    #     chi2 = np.dot(residual,z)
+    #     return -0.5*chi2
+    # #########################################
+
+    
 #########################################
 class ZeldovichSmearingTheory(Theory,Utilities):
     #########################################
@@ -227,6 +263,8 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                         # other setup keys shouldn't be touched.
                         # leave empty to use default setup (flat LCDM at z_eval=0.8, scale 6.0).
     emulator_model_name = 'shallow' # needed when strong_prior=True, to instantiate emulator ensemble. default 'shallow' (don't change unless others have been trained.)
+    include_emulator_error = False # default False. used if strong_prior=True, to decide whether or not to account for emulator error.
+    emulator_cov_file = None # if include_emulator_error=True, this should be path/to/emulator/error/covariance
     #########################################
     def initialize(self):
         Utilities.__init__(self)
@@ -273,14 +311,8 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         self.rvals_min_check = self.rvals.min()+2*self.dr
         ##########################
         
-        ##########################
         # lists of strings, useful for indexing sampled params
-        self.w_names = ['w_{0:d}'.format(m) for m in self.use_basis]
-        # self.param_names_all = ['beta','sigv']
-        # self.param_names_all.extend(self.w_names)
-        # self.param_names_all += ['b','B1st','Bvst','sigma','AMC']
-        # self.param_names_all += ['qbar2','qbar4']
-        ##########################
+        self.w_names = [f"w_{b}" for b in self.use_basis]
 
         self.N_Data = self.svals.size
         self.ds = self.svals[1]-self.svals[0]
@@ -311,12 +343,18 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         # Emulator setup
         ##########################
         if self.strong_prior:
-            em_setup = {'out_stem':'../emulation/emulators/','cosmo':'lcdm','flat':True,'z_eval':0.8,'scale_planck18':6.0,'verbose':False}
+            em_setup = {'out_stem':'../emulation/emulators/','cosmo':'lcdm','flat':True,'z_eval':0.8,'scale_planck18':6.0}
             for key in em_setup.keys():
                 if key in self.emulator_setup.keys():
                     em_setup[key] = self.emulator_setup[key] # switch to user-defined value if requested
+            em_setup['verbose'] = False
             self.agem = AgnosticEmulator(setup=em_setup)
             self.FwdEmulator = self.agem.load(invert=False,model_name=self.emulator_model_name)
+            if self.include_emulator_error:
+                self.rng = np.random.RandomState() # for generating mock emulator noise
+                if not Path(self.emulator_cov_file).is_file():
+                    raise Exception("emulator noise file not found: "+self.emulator_cov_file)
+                self.em_cov = np.loadtxt(self.emulator_cov_file)
         
     #########################################
 
@@ -731,14 +769,19 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                     params_dict[key] = params_values_dict[key]
                     
             # extract cosmological params [assumes params_values_dict.keys() contains all of self.agem.keys_vary]
-            cosmological = self.agem.cv([params_values_dict[key] for key in self.agem.keys_vary])
+            cosmological = [params_values_dict[key] for key in self.agem.keys_vary]
+            cosmological = self.agem.cv(cosmological) # method cv makes a column vector
             
             # emulate agnostic params
-            agnostic = self.FwdEmulator.predict(cosmological)
+            agnostic = self.FwdEmulator.predict(cosmological)[:,0]
+
+            # account for emulator error if requested (will be averaged over in likelihood)
+            if self.include_emulator_error:
+                agnostic += self.rng.multivariate_normal(np.zeros(agnostic.shape[0]),self.em_cov)
 
             # set values of agnostic params in dict
-            for a in range(len(self.agem.n_agnostic)):
-                params_dict[self.agem.keys_agnostic[a]] = agnostic[a,0]
+            for a in range(self.agem.n_agnostic):
+                params_dict[self.agem.keys_agnostic[a]] = agnostic[a]
             params_dict['beta'] = params_dict['f']/params_dict['b']
             # note: params_dict['f'] will be ignored
 
@@ -754,7 +797,11 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         w_m = np.array([params_dict[key] for key in self.w_names])
         peak,dip,LP,ZC = self.calc_linearscales(w_m)
         
-        state['derived'] = {'f':f,'peak':peak,'LP':LP,'ZC':ZC}
+        state_derived = {'f':f,'peak':peak,'LP':LP,'ZC':ZC}
+        if self.strong_prior:
+            for w in range(len(self.w_names)):
+                state_derived[self.w_names[w]] = w_m[w]
+        state['derived'] = copy.deepcopy(state_derived)
 
         if not self.sdbmc:
             params_dict['sigma'] = np.sqrt(2)*params_dict['sigv']

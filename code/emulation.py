@@ -81,7 +81,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
         self.basis_func = self.evaluate_basis(self.rvals)
 
         self.n_agnostic = self.n_basis + 4 # (9) basis coeffs + f,sigv,DaAP,fv ( = 13)
-        self.keys_agnostic = ['w{0:d}'.format(n) for n in range(self.n_basis)]
+        self.keys_agnostic = ['w_{0:d}'.format(n) for n in range(self.n_basis)]
         self.keys_agnostic += ['f','sigv','DaAP','fv']
         
         # setup fiducial cosmology and param variation lists
@@ -261,7 +261,7 @@ class AgnosticEmulator(Utilities,MLUtilities):
                                'DaAP':"\\Delta\\alpha_{\\rm AP}",
                                'fv':"f_{\\rm v}"}
         for b in range(self.n_basis):
-            self.latex_keys_all[f"w{b}"] = f"w_{{{b}}}"
+            self.latex_keys_all[f"w_{b}"] = f"w_{{{b}}}"
 
         self.latex_agnostic = []
         for key in self.keys_agnostic:
@@ -590,8 +590,9 @@ class AgnosticEmulator(Utilities,MLUtilities):
         setup_dict['family'] = family
         model_name = setup_dict.get('model_name',family)
         setup_dict['model_name'] = model_name
-        
-        setup_dict['file_stem'] = self.out_stem + self.cosmo + self.flat_str + '/models/' + model_name + inv_str # folder to write/read samples to/from
+
+        # folder to write/read samples to/from
+        setup_dict['file_stem'] = str(Path(self.out_stem + self.cosmo + self.flat_str + '/models/' + model_name + inv_str).resolve())
 
         setup_dict['loss_type'] = 'square'
         setup_dict['ensemble'] = True

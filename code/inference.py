@@ -210,7 +210,7 @@ class StrongSampler(Utilities):
     ##################################
     def set_dim(self,modify_data=True,varyMC=True):
         """ Simple utility to calculate and store dimensions of data and parameter vectors (excluding derived params). 
-            Called by self.set_mcmc().
+            Called by self.setup_mcmc().
             Sets attributes:
             -- dim,n_data,dof
         """
@@ -602,7 +602,7 @@ class StrongSampler(Utilities):
         model.logposterior(point)
         xiNLell_best = like.wrap_model(model.provider.get_model())
         W_best = np.array([dp_best['w_{0:d}'.format(m)] for m in range(self.agem.n_basis)])
-        xilin_best = np.dot(theory.bfunc.T,W_best)/(dp_best['b']**2 + 1e-15)
+        xilin_best = np.dot(theory.bfunc.T,W_best)
 
         n_boot = np.min([5000,int(0.2*sample[0].size)])
         indices = gd_sample.random_single_samples_indices(random_state=42,max_samples=n_boot)
@@ -630,7 +630,7 @@ class StrongSampler(Utilities):
             xiNLell_b = model.provider.get_model()
             xiNLell_boot[b] = xiNLell_b
             W_b = np.array([dp_b['w_{0:d}'.format(m)] for m in range(self.agem.n_basis)])
-            xilin_boot[b] = np.dot(theory.bfunc.T,W_b)/(dp_b['b']**2 + 1e-15)
+            xilin_boot[b] = np.dot(theory.bfunc.T,W_b)
             if self.verbose:
                 self.status_bar(b,n_boot)
 

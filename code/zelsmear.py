@@ -784,10 +784,6 @@ class ZeldovichSmearingTheory(Theory,Utilities):
                 params_dict[self.agem.keys_agnostic[a]] = agnostic[a]
             params_dict['beta'] = params_dict['f']/params_dict['b']
             # note: params_dict['f'] will be ignored
-
-            # adjust for fact that emulator assumed unit-bias tracers
-            for key in self.w_names:
-                params_dict[key] *= params_dict['b']**2 
         else:
             # in this case, sampled params contain beta,sigv,{w_m}[,DaAP][,fv] and sdbmc
             params_dict = copy.deepcopy(params_values_dict)
@@ -795,12 +791,14 @@ class ZeldovichSmearingTheory(Theory,Utilities):
         # keys = params_dict.keys()
         f = params_dict['beta']*params_dict['b'] 
         w_m = np.array([params_dict[key] for key in self.w_names])
-        peak,dip,LP,ZC = self.calc_linearscales(w_m)
+        peak,dip,LP,ZC = self.calc_linearscales(w_m) # this doesn't care about bias
         
         state_derived = {'f':f,'peak':peak,'LP':LP,'ZC':ZC}
         if self.strong_prior:
             for w in range(len(self.w_names)):
-                state_derived[self.w_names[w]] = w_m[w]
+                key = self.w_names[w]
+                params_dict[key] *= params_dict['b']**2 # adjust dict for fact that emulator assumed unit-bias tracers
+                state_derived[key] = w_m[w]             # store unit-bias basis coeffs
         state['derived'] = copy.deepcopy(state_derived)
 
         if not self.sdbmc:

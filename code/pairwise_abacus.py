@@ -1,5 +1,5 @@
 import numpy as np
-import sys,gc#,fitsio
+import sys,gc
 from pathlib import Path
 from astropy.io import fits
 from astropy.cosmology import FlatLambdaCDM
@@ -20,25 +20,22 @@ import matplotlib.pyplot as plt
 
 ut = Utilities()
 
-def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,kmin,kmax,h_fid,max_file,ddstem,down_to,rng,do_2pcf,do_Pk,mdict):
+def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,kmin,kmax,h_fid,
+               max_file,ddstem,down_to,rng,do_2pcf,do_Pk,use_AP,mdict):
     data_dir = ddstem + '{0:03d}/z{1:.3f}/'.format(phase,redshift)
     print(data_dir+'\n')
     start_time = time()
-    # data = fitsio.read(data_dir+'sub_0_nsub_4.fits')
     with fits.open(data_dir+'sub_0_nsub_4.fits') as hdu:
         data = hdu[1].data
     data_size_orig = data['Mabacus'].size
     data = data[data['Mabacus'] >= M_min]
-    # ut.status_bar(0,max_file)
     for i in range(1,max_file):
-        # data_i = fitsio.read(data_dir+'sub_{0:d}_nsub_4.fits'.format(i))
         with fits.open(data_dir+'sub_{0:d}_nsub_4.fits'.format(i)) as hdu_i:
             data_i = hdu_i[1].data
         data_size_orig += data_i['Mabacus'].size
         data_i = data_i[data_i['Mabacus'] >= M_min]
         data = np.concatenate((data,data_i))
         data_i = None
-        # ut.status_bar(i,max_file)
     ut.time_this(start_time)
     print('... ... kept {0:d} of {1:d} objects'.format(data['Mabacus'].size,data_size_orig))
     
@@ -48,8 +45,6 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data_use = data['x_L2com'][ind]
     else:
         data_use = data['x_L2com']
-    # ind = rng.choice(np.arange(data_size),size=data_size//down_to,replace=False) if down_to > 1 else np.arange(data_size)
-    # data_use = data['x_L2com'][ind]
 
     E_z = 0.0
     h = 0.0
@@ -80,10 +75,11 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         # store final los separation
         data_use[:,los] = zred
 
-        # account for true-to-fiducial conversion
-        non_los = np.where(np.arange(3) != los)[0]
-        data_use[:,los] *= alpha_par
-        data_use[:,non_los] *= alpha_perp
+        # account for true-to-fiducial conversion if requested
+        if use_AP:
+            non_los = np.where(np.arange(3) != los)[0]
+            data_use[:,los] *= alpha_par
+            data_use[:,non_los] *= alpha_perp
         
         # account for pbc
         data_use %= Lbox
@@ -144,23 +140,31 @@ if __name__ == "__main__":
     ##################################
     # -- if this ends with '-xN' then stats will be averaged over N phases starting with ph000.
     # -- if not, then only one phase will be used, specified by Ref_Phase below.
-    Sample = 'Euclid-ELG' # 'DESI-LRG2','Euclid-ELG' 
+    Sample = 'Euclid-ELG' # 'DESI-LRG2','Euclid-ELG'
 
+    Cosmo = 'c000' # either 'c000' or 'c001'
+    if Cosmo not in ['c000','c001']:
+        raise Exception("Only c000 or c001 supported, not "+Cosmo)
+
+    UseAP = True # whether or not to include Alcock-Paczynski scaling
+    
     print('AbacusSummit pairwise correlations for sample:',Sample)
     
-    data_dir = '../examples/data/AbacusSummit/base_c000/' + Sample + '/'
+    data_dir = '../examples/data/AbacusSummit/base_'+Cosmo+'/' + Sample + '/'
+    if not UseAP:
+        data_dir += 'noAP/'
     Path(data_dir).mkdir(parents=True,exist_ok=True) # folder to store data products
     
     ml = MLUtilities()
 
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9,'downto':4}}
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9 if Cosmo=='c000' else 0,'downto':4}}
     
     Do_2pcf = True
     Do_Pk = False
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
-    N_Phase = 25
+    N_Phase = 25 if Cosmo == 'c000' else 1
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
@@ -173,7 +177,7 @@ if __name__ == "__main__":
     
     Grid = 256    # default 256 (better than 1% convergence at k <= 0.2 h/Mpc)
     Max_File = 64 # default 64
-    NProc = np.min([N_Phase,25 if Aniso else 8]) if Do_2pcf else 1 
+    NProc = (np.min([N_Phase,25 if Aniso else 8]) if Do_2pcf else 1) if Cosmo=='c000' else 1
     
     Redshift = config_dict[Sample]['redshift']  # 0.8
     print('... working at redshift z = {0:.3f}'.format(Redshift))
@@ -188,11 +192,13 @@ if __name__ == "__main__":
     print('... downsampling by factor {0:d}'.format(Down_To))
 
     # Abacus baseline c000 cosmology
-    co_c000 = FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Neff=3.044,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255)
-    print('... abacus cosmo c000:',co_c000)
+    co_true = (FlatLambdaCDM(H0=67.36,Om0=0.315192,Ob0=0.049302,Neff=3.044,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255)
+               if Cosmo=='c000' else
+               FlatLambdaCDM(H0=70.30,Om0=0.276126,Ob0=0.045365,Neff=3.044,m_nu=[0.060,0.,0.] * u.eV,Tcmb0=2.7255))
+    print('... abacus cosmo '+Cosmo+':',co_true)
     # ... distances
-    d_Hub = (SPEED_OF_LIGHT/co_c000.H(Redshift))
-    d_Ang_com = (1+Redshift)*co_c000.angular_diameter_distance(Redshift)
+    d_Hub = (SPEED_OF_LIGHT/co_true.H(Redshift))
+    d_Ang_com = (1+Redshift)*co_true.angular_diameter_distance(Redshift)
     # ... check units
     check_units('d_Hub',d_Hub,'Mpc')
     check_units('d_Ang_com',d_Ang_com,'Mpc')
@@ -208,8 +214,8 @@ if __name__ == "__main__":
     check_units('d_Hub_fid',d_Hub_fid,'Mpc')
     check_units('d_Ang_com_fid',d_Ang_com_fid,'Mpc')
 
-    print('... h = {0:.4f}; h_fid = {1:.4f}'.format(co_c000.h,h_fid))
-    hfid_by_h = h_fid/co_c000.h
+    print('... h = {0:.4f}; h_fid = {1:.4f}'.format(co_true.h,h_fid))
+    hfid_by_h = h_fid/co_true.h
     
     alpha_par = d_Hub_fid.value/d_Hub.value
     alpha_perp = d_Ang_com_fid.value/d_Ang_com.value
@@ -231,7 +237,7 @@ if __name__ == "__main__":
     print('...     DV: {0:.4f} Mpc/h_fid'.format(DV))
     print('... DV_fid: {0:.4f} Mpc/h_fid'.format(DV_fid))
 
-    Abacus_Stem = Abacus_Path + 'AbacusSummit_base_c000_ph'
+    Abacus_Stem = Abacus_Path + 'AbacusSummit_base_'+Cosmo+'_ph'
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
     
     start_time_setup = time()
@@ -256,7 +262,8 @@ if __name__ == "__main__":
     rng = np.random.RandomState(42)
 
     if Do_2pcf:
-        task_tuple = (tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk)
+        task_tuple = (tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,
+                      Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,UseAP)
         tasks = [task_tuple]*N_Phase
         # tasks = []
         # for phase in range(N_Phase):
@@ -267,7 +274,8 @@ if __name__ == "__main__":
         # parallel doesn't work because C .so libs aren't pickled properly... PENDING RESOLUTION
         pw_dict = {}
         for phase in range(N_Phase):
-            queuer_box(phase,tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,pw_dict)
+            queuer_box(phase,tpcf,powspec,Aniso,LOS,alpha_par,alpha_perp,Redshift,M_min,K_Min,K_Max,h_fid,
+                       Max_File,Abacus_Stem,Down_To,rng,Do_2pcf,Do_Pk,UseAP,pw_dict)
 
     if Do_2pcf:
         file_stem_2pcf = 'xi'

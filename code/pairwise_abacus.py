@@ -27,24 +27,25 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
     start_time = time()
     with fits.open(data_dir+'sub_0_nsub_4.fits') as hdu:
         data = hdu[1].data
-    data_size_orig = data['Mabacus'].size
+    data_size_orig = data.size
     data = data[data['Mabacus'] >= M_min]
     for i in range(1,max_file):
         with fits.open(data_dir+'sub_{0:d}_nsub_4.fits'.format(i)) as hdu_i:
             data_i = hdu_i[1].data
-        data_size_orig += data_i['Mabacus'].size
+        data_size_orig += data_i.size
         data_i = data_i[data_i['Mabacus'] >= M_min]
         data = np.concatenate((data,data_i))
         data_i = None
     ut.time_this(start_time)
-    print('... ... kept {0:d} of {1:d} objects'.format(data['Mabacus'].size,data_size_orig))
+    print('... ... kept {0:d} of {1:d} objects'.format(data.size,data_size_orig))
     
-    data_size = data['Mabacus'].size
+    data_size = data.size
     if down_to > 1:
-        ind = rng.choice(np.arange(data_size),size=data_size//down_to,replace=False) 
-        data_use = data['x_L2com'][ind]
-    else:
-        data_use = data['x_L2com']
+        ind = rng.choice(np.arange(data_size),size=data_size//down_to,replace=False)
+        data = data[ind]
+        print('... ... further downsampled to {0:d} objects'.format(data.size))
+    data_use = data['x_L2com'].copy()
+    # data and data_use have same number of objects
 
     E_z = 0.0
     h = 0.0
@@ -67,24 +68,51 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
 
         # from prop vel to comov separation
         vel_to_cMpch = (1+redshift)/(100*E_z) # same as BoxSizeHMpc/VelZSpace_to_kms as suggested on website
-        zred = data['v_L2com'][ind,los]*vel_to_cMpch if down_to > 1 else data['v_L2com'][:,los]*vel_to_cMpch
+        zred = data['v_L2com'][:,los]*vel_to_cMpch
 
         # add real-space separation
         zred += data_use[:,los]
         
         # store final los separation
-        data_use[:,los] = zred
-
-        # account for true-to-fiducial conversion if requested
-        if use_AP:
-            non_los = np.where(np.arange(3) != los)[0]
-            data_use[:,los] *= alpha_par
-            data_use[:,non_los] *= alpha_perp
+        data_use[:,los] = zred        
+        del zred
         
         # account for pbc
         data_use %= Lbox
-        
-        del zred
+
+        # account for true-to-fiducial conversion (AP scaling) if requested
+        if use_AP:
+            # only use 1/8 (first octant) of box when true-to-fiducial scaling is requested
+            cond_keep = np.ones(data_use.shape[0],dtype=bool)
+            for i in range(3):
+                cond_keep = cond_keep & (data_use[:,i] <= 0.5*Lbox) # & (data_use[:,i] > 0.0) # last is always true
+            data_use = data_use[cond_keep]
+            data = data[cond_keep]
+            # data and data_use have same number of objects
+            del cond_keep
+            print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
+
+            # apply anisotropic scaling
+            non_los = np.where(np.arange(3) != los)[0]
+            data_use[:,los] *= alpha_par
+            data_use[:,non_los] *= alpha_perp
+            # DON'T wrap periodically after scaling
+
+            # define alpha_max for renormalisation of 2pcf and Pk
+            alpha_max = np.max([alpha_par,alpha_perp,1.0])
+            C = alpha_par*alpha_perp**2/(2*alpha_max)**3
+            
+        ############
+        # earlier version
+        ############
+        # # account for true-to-fiducial conversion if requested
+        # if use_AP:
+        #     non_los = np.where(np.arange(3) != los)[0]
+        #     data_use[:,los] *= alpha_par
+        #     data_use[:,non_los] *= alpha_perp        
+        # # account for pbc
+        # data_use %= Lbox
+        ############
         
     del data
     if down_to > 1:
@@ -98,7 +126,13 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         if aniso & (tpcf.los != los):
             raise Exception('Mismatched los in tpcf')
         start_time = time()
-        temp['2pcf'] = tpcf.auto_CF(data_use)
+        twopcf = tpcf.auto_CF(data_use)
+        if aniso & use_AP:
+            # renormalise from alpha_max cube to anisotropic cuboid
+            twopcf[0] = (1+twopcf[0])*C - 1.0
+            if tpcf.L_Max > 1:
+                twopcf[1:,:] *= C # since ell > 0 doesn't pick up -1 in mu-integrated DD/RR
+        temp['2pcf'] = twopcf
         ut.time_this(start_time)
         
     if do_Pk:
@@ -106,6 +140,9 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             raise Exception('Mismatched los in powspec')
         start_time = time()
         Pk = powspec.Pk_grid(data_use.T,aniso=aniso)
+        if aniso & use_AP:
+            # renormalise from alpha_max cube to anisotropic cuboid
+            Pk *= C
         temp['Pk'] = Pk
         ut.time_this(start_time)
 
@@ -157,8 +194,10 @@ if __name__ == "__main__":
     
     ml = MLUtilities()
 
-    config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,'phase':0,'downto':1},
-                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,'phase':9 if Cosmo=='c000' else 0,'downto':4}}
+    config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,
+                                 'phase':0,'downto':1},
+                   'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,
+                                 'phase':9 if Cosmo=='c000' else 0,'downto':4 if not UseAP else 1}}
     
     Do_2pcf = True
     Do_Pk = False
@@ -239,10 +278,20 @@ if __name__ == "__main__":
 
     Abacus_Stem = Abacus_Path + 'AbacusSummit_base_'+Cosmo+'_ph'
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
+
+    if UseAP:
+        # define alpha_max for renormalisation of 2pcf and Pk
+        alpha_max = np.max([alpha_par,alpha_perp,1.0])
+
+        # rescale box size
+        print('... defining dummy box size scaled by factor {1:.5f}'.format(Lbox_AbacusSummit,alpha_max))
+        Ldummy = Lbox_AbacusSummit*alpha_max
+    else:
+        Ldummy = Lbox_AbacusSummit
     
     start_time_setup = time()
     if Do_2pcf:
-        tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS)
+        tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Ldummy,los=LOS)
         tpcf.verbose = False
         # if Sample == 'Euclid-ELG':
         #     tpcf.N_SPLIT = 300000
@@ -252,7 +301,7 @@ if __name__ == "__main__":
     if Do_Pk:
         # interpret all scales in h_fid/Mpc
         K_Min_Pk,K_Max_Pk,N_Kbin = 0.01,0.2,19
-        powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Lbox_AbacusSummit,lgbin=None,nbin=N_Kbin,anisotropic=Aniso,los=LOS)
+        powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Ldummy,lgbin=None,nbin=N_Kbin,anisotropic=Aniso,los=LOS)
         K_Min,K_Max = 0.02,0.05
     else:
         powspec = None

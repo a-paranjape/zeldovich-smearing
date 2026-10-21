@@ -100,7 +100,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
 
             # define alpha_max for renormalisation of 2pcf and Pk
             alpha_max = np.max([alpha_par,alpha_perp,1.0])
-            C = 1.0#alpha_par*alpha_perp**2/(2*alpha_max)**3
+            C = alpha_par*alpha_perp**2/(2*alpha_max)**3
             
         ############
         # earlier version
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # -- if not, then only one phase will be used, specified by Ref_Phase below.
     Sample = 'DESI-LRG2' # 'DESI-LRG2','Euclid-ELG'
 
-    Cosmo = 'c001' # either 'c000' or 'c001'
+    Cosmo = 'c000' # either 'c000' or 'c001'
     if Cosmo not in ['c000','c001']:
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 

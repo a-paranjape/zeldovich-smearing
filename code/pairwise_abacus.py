@@ -100,7 +100,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
 
             # define alpha_max for renormalisation of 2pcf and Pk
             alpha_max = np.max([alpha_par,alpha_perp,1.0])
-            C = alpha_par*alpha_perp**2/(2*alpha_max)**3
+            C = 1.0#alpha_par*alpha_perp**2/(2*alpha_max)**3
             
         ############
         # earlier version
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     if Cosmo not in ['c000','c001']:
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
-    UseAP = False # whether or not to include Alcock-Paczynski scaling
+    UseAP = True # whether or not to include Alcock-Paczynski scaling
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     

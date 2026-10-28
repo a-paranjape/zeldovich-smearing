@@ -279,7 +279,8 @@ if __name__ == "__main__":
     if Do_Pk:
         # interpret all scales in h_fid/Mpc
         K_Min_Pk,K_Max_Pk,N_Kbin = 0.01,0.2,19
-        powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Ldummy,lgbin=None,nbin=N_Kbin,anisotropic=Aniso,los=LOS)
+        powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Ldummy,L_Max=L_Max,lgbin=None,
+                                nbin=N_Kbin,anisotropic=Aniso,los=LOS)
         K_Min,K_Max = 0.02,0.05
     else:
         powspec = None

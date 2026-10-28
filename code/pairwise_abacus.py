@@ -162,6 +162,7 @@ if __name__ == "__main__":
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
     UseAP = True # whether or not to include Alcock-Paczynski scaling
+    Aniso = True # whether to report multipoles or real space measurement
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     
@@ -175,7 +176,7 @@ if __name__ == "__main__":
     config_dict = {'DESI-LRG2': {'redshift':0.80,'Mmin':8e12,
                                  'phase':0,'downto':1},
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,
-                                 'phase':9 if Cosmo=='c000' else 0,'downto':4 if not UseAP else 1}}
+                                 'phase':9 if Cosmo=='c000' else 0,'downto':4 if not (Aniso & UseAP) else 1}}
     
     Do_2pcf = True
     Do_Pk = False
@@ -186,7 +187,6 @@ if __name__ == "__main__":
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 
     
-    Aniso = True
     LOS = 2
     L_Max = 3
     

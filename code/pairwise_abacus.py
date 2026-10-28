@@ -97,22 +97,6 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             data_use[:,los] *= alpha_par
             data_use[:,non_los] *= alpha_perp
             # DON'T wrap periodically after scaling
-
-            # define alpha_max for renormalisation of 2pcf and Pk
-            alpha_max = np.max([alpha_par,alpha_perp,1.0])
-            C = alpha_par*alpha_perp**2/(2*alpha_max)**3
-            
-        ############
-        # earlier version
-        ############
-        # # account for true-to-fiducial conversion if requested
-        # if use_AP:
-        #     non_los = np.where(np.arange(3) != los)[0]
-        #     data_use[:,los] *= alpha_par
-        #     data_use[:,non_los] *= alpha_perp        
-        # # account for pbc
-        # data_use %= Lbox
-        ############
         
     del data
     if down_to > 1:
@@ -126,13 +110,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         if aniso & (tpcf.los != los):
             raise Exception('Mismatched los in tpcf')
         start_time = time()
-        twopcf = tpcf.auto_CF(data_use)
-        if aniso & use_AP:
-            # renormalise from alpha_max cube to anisotropic cuboid
-            twopcf[0] = (1+twopcf[0])*C - 1.0
-            if tpcf.L_Max > 1:
-                twopcf[1:,:] *= C # since ell > 0 doesn't pick up -1 in mu-integrated DD/RR
-        temp['2pcf'] = twopcf
+        temp['2pcf'] = tpcf.auto_CF(data_use)
         ut.time_this(start_time)
         
     if do_Pk:
@@ -142,7 +120,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         Pk = powspec.Pk_grid(data_use.T,aniso=aniso)
         if aniso & use_AP:
             # renormalise from alpha_max cube to anisotropic cuboid
-            Pk *= C
+            Pk *= alpha_par*alpha_perp**2/(2*np.max([alpha_par,alpha_perp,1.0]))**3
         temp['Pk'] = Pk
         ut.time_this(start_time)
 
@@ -282,16 +260,16 @@ if __name__ == "__main__":
     if UseAP:
         # define alpha_max for renormalisation of 2pcf and Pk
         alpha_max = np.max([alpha_par,alpha_perp,1.0])
-
-        # rescale box size
-        print('... defining dummy box size scaled by factor {1:.5f}'.format(Lbox_AbacusSummit,alpha_max))
         Ldummy = Lbox_AbacusSummit*alpha_max
+        scale_factors = [0.5*alpha_par,0.5*alpha_perp]
     else:
         Ldummy = Lbox_AbacusSummit
+        scale_factors = [1.,1.]
     
     start_time_setup = time()
     if Do_2pcf:
-        tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Ldummy,los=LOS)
+        tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS,
+                                                   pbc=(not UseAP),scale_factors=scale_factors)
         tpcf.verbose = False
         # if Sample == 'Euclid-ELG':
         #     tpcf.N_SPLIT = 300000

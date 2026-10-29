@@ -118,9 +118,6 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             raise Exception('Mismatched los in powspec')
         start_time = time()
         Pk = powspec.Pk_grid(data_use.T,aniso=aniso)
-        if aniso & use_AP:
-            # renormalise from alpha_max cube to anisotropic cuboid
-            Pk *= alpha_par*alpha_perp**2/(2*np.max([alpha_par,alpha_perp,1.0]))**3
         temp['Pk'] = Pk
         ut.time_this(start_time)
 
@@ -178,8 +175,8 @@ if __name__ == "__main__":
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,
                                  'phase':9 if Cosmo=='c000' else 0,'downto':4 if not (Aniso & UseAP) else 1}}
     
-    Do_2pcf = True
-    Do_Pk = False
+    Do_2pcf = False
+    Do_Pk = True
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 25 if Cosmo == 'c000' else 1
@@ -258,18 +255,14 @@ if __name__ == "__main__":
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
 
     if UseAP:
-        # define alpha_max for renormalisation of 2pcf and Pk
-        alpha_max = np.max([alpha_par,alpha_perp,1.0])
-        Ldummy = Lbox_AbacusSummit*alpha_max
-        scale_factors = [0.5*alpha_par,0.5*alpha_perp]
+        scale_factors = np.array([alpha_par,alpha_perp])
     else:
-        Ldummy = Lbox_AbacusSummit
         scale_factors = [1.,1.]
     
     start_time_setup = time()
     if Do_2pcf:
         tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS,
-                                                   pbc=(not UseAP),scale_factors=scale_factors)
+                                                   pbc=(not UseAP),scale_factors=list(0.5*scale_factors)) 
         tpcf.verbose = False
         # if Sample == 'Euclid-ELG':
         #     tpcf.N_SPLIT = 300000
@@ -279,8 +272,8 @@ if __name__ == "__main__":
     if Do_Pk:
         # interpret all scales in h_fid/Mpc
         K_Min_Pk,K_Max_Pk,N_Kbin = 0.01,0.2,19
-        powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Ldummy,L_Max=L_Max,lgbin=None,
-                                nbin=N_Kbin,anisotropic=Aniso,los=LOS)
+        powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Lbox_AbacusSummit,L_Max=L_Max,lgbin=None,
+                                nbin=N_Kbin,anisotropic=Aniso,los=LOS,scale_factors=list(scale_factors))
         K_Min,K_Max = 0.02,0.05
     else:
         powspec = None
@@ -328,8 +321,10 @@ if __name__ == "__main__":
             xi = np.mean(xi_phases,axis=0)
             err_xi /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
         else:
-            xi = xi_phases[Ref_Phase].copy()
-            err_xi *= np.sqrt(N_Phase/(N_Phase-1 + 1e-15))
+            xi = np.mean(xi_phases,axis=0)
+            err_xi /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+            # xi = xi_phases[Ref_Phase].copy()
+            # err_xi *= np.sqrt(N_Phase/(N_Phase-1 + 1e-15))
 
         print('Writing to file: ',scales_file)
         np.savetxt(scales_file,tpcf.smid,fmt='%.8e')
@@ -402,8 +397,10 @@ if __name__ == "__main__":
             Pk = np.mean(Pk_phases,axis=0)
             err_Pk /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
         else:
-            Pk = Pk_phases[Ref_Phase].copy()
-            err_Pk *= np.sqrt(N_Phase/(N_Phase-1 + 1e-15))
+            Pk = np.mean(Pk_phases,axis=0)
+            err_Pk /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+            # Pk = Pk_phases[Ref_Phase].copy()
+            # err_Pk *= np.sqrt(N_Phase/(N_Phase-1 + 1e-15))
 
         if Aniso:
             err_Sig2obs = np.std(Sig2obs_phases,axis=0)

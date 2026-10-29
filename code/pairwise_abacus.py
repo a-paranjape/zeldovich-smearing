@@ -255,14 +255,14 @@ if __name__ == "__main__":
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
 
     if UseAP:
-        scale_factors = np.array([alpha_par,alpha_perp])
+        scale_factors = np.array([0.5*alpha_par,0.5*alpha_perp])
     else:
         scale_factors = [1.,1.]
     
     start_time_setup = time()
     if Do_2pcf:
         tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS,
-                                                   pbc=(not UseAP),scale_factors=list(0.5*scale_factors)) 
+                                                   pbc=(not UseAP),scale_factors=list(scale_factors)) 
         tpcf.verbose = False
         # if Sample == 'Euclid-ELG':
         #     tpcf.N_SPLIT = 300000

@@ -159,7 +159,7 @@ if __name__ == "__main__":
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
     UseAP = True # whether or not to include Alcock-Paczynski scaling
-    Aniso = True # whether to report multipoles or real space measurement
+    Aniso = False # whether to report multipoles or real space measurement
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     
@@ -254,15 +254,15 @@ if __name__ == "__main__":
     Abacus_Stem = Abacus_Path + 'AbacusSummit_base_'+Cosmo+'_ph'
     Lbox_AbacusSummit = 2000.0*hfid_by_h # AbacusSummit box size in Mpc/h_fid
 
-    if UseAP:
-        scale_factors = np.array([0.5*alpha_par,0.5*alpha_perp])
+    if UseAP & Aniso:
+        scale_factors = [0.5*alpha_par,0.5*alpha_perp]
     else:
         scale_factors = [1.,1.]
     
     start_time_setup = time()
     if Do_2pcf:
         tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS,
-                                                   pbc=(not UseAP),scale_factors=list(scale_factors)) 
+                                                   pbc=(not UseAP),scale_factors=scale_factors) 
         tpcf.verbose = False
         # if Sample == 'Euclid-ELG':
         #     tpcf.N_SPLIT = 300000
@@ -273,7 +273,7 @@ if __name__ == "__main__":
         # interpret all scales in h_fid/Mpc
         K_Min_Pk,K_Max_Pk,N_Kbin = 0.01,0.2,19
         powspec = PowerSpectrum(grid=Grid,kmin=K_Min_Pk,kmax=K_Max_Pk,Lbox=Lbox_AbacusSummit,L_Max=L_Max,lgbin=None,
-                                nbin=N_Kbin,anisotropic=Aniso,los=LOS,scale_factors=list(scale_factors))
+                                nbin=N_Kbin,anisotropic=Aniso,los=LOS,scale_factors=scale_factors)
         K_Min,K_Max = 0.02,0.05
     else:
         powspec = None

@@ -97,6 +97,13 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             data_use[:,los] *= alpha_par
             data_use[:,non_los] *= alpha_perp
             # DON'T wrap periodically after scaling
+
+            ##################
+            # test, using effectively random positions 
+            rng.shuffle(data_use[:,los])
+            for nl in non_los:
+                rng.shuffle(data_use[:,nl])
+            ##################
         
     del data
     if down_to > 1:
@@ -159,7 +166,7 @@ if __name__ == "__main__":
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
     UseAP = True # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
-    Aniso = False # whether to report multipoles or real space measurement
+    Aniso = True # whether to report multipoles or real space measurement
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     

@@ -158,7 +158,7 @@ if __name__ == "__main__":
     if Cosmo not in ['c000','c001']:
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
-    UseAP = True # whether or not to include Alcock-Paczynski scaling
+    UseAP = True # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
     Aniso = False # whether to report multipoles or real space measurement
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     start_time_setup = time()
     if Do_2pcf:
         tpcf = TwoPointCorrelationFunctionPeriodic(smin=65.0,smax=125.0,n_s=30,aniso=Aniso,L_Max=L_Max,Lbox=Lbox_AbacusSummit,los=LOS,
-                                                   pbc=(not UseAP),scale_factors=scale_factors) 
+                                                   pbc=(not (UseAP & Aniso)),scale_factors=scale_factors) 
         tpcf.verbose = False
         # if Sample == 'Euclid-ELG':
         #     tpcf.N_SPLIT = 300000
@@ -408,7 +408,9 @@ if __name__ == "__main__":
                 Sig2obs = np.mean(Sig2obs_phases,axis=0)
                 err_Sig2obs /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
             else:
-                Sig2obs = Sig2obs_phases[Ref_Phase].copy()
+                Sig2obs = np.mean(Sig2obs_phases,axis=0)
+                err_Sig2obs /= np.sqrt(N_Phase-1 + 1e-15) # placeholder until better errors available
+                # Sig2obs = Sig2obs_phases[Ref_Phase].copy()
         
         print('Writing to file: ',Pk_file)
         with open(Pk_file,'w') as f:
@@ -445,7 +447,6 @@ if __name__ == "__main__":
                 else:
                     ut.write_to_file(Pk_file_phase,[powspec.ktab[k],Pk_phases[phase,k]])
 
-
         if Aniso:
             print('Writing to file: ',Sig2obs_file)
             with open(Sig2obs_file,'w') as f:
@@ -458,9 +459,7 @@ if __name__ == "__main__":
                 ph_str = '{0:03d}'.format(phase)
                 print('... phase '+ph_str)
                 Sig2obs_file_phase = Sig2obs_phase_stem + ph_str + '.txt'
-                np.savetxt(Sig2obs_file_phase,Sig2obs_phases[phase],fmt='%.8e',header="Sig2obs (Mpc/h_fid)^2")
-
-                
+                np.savetxt(Sig2obs_file_phase,Sig2obs_phases[phase],fmt='%.8e',header="Sig2obs (Mpc/h_fid)^2")                
                     
     print('... all done!')
     ut.time_this(start_time)

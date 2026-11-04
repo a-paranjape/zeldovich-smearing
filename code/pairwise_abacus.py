@@ -176,7 +176,7 @@ if __name__ == "__main__":
     if Cosmo not in ['c000','c001']:
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
-    UseAP = True # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
+    UseAP = False # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
     Aniso = True # whether to report multipoles or real space measurement
     
     Do_2pcf = False

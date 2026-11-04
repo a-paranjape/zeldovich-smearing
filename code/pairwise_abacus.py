@@ -80,6 +80,23 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         # account for pbc
         data_use %= Lbox
 
+        ##################
+        # test, using effectively random positions
+        print('... restricting to first octant')
+        cond_keep = np.ones(data_use.shape[0],dtype=bool)
+        for i in range(3):
+            cond_keep = cond_keep & (data_use[:,i] <= 0.5*Lbox) # & (data_use[:,i] > 0.0) # last is always true
+        data_use = data_use[cond_keep]
+        data = data[cond_keep]
+        # data and data_use have same number of objects
+        del cond_keep
+        print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
+        print('... shuffling')
+        for i in range(3):
+            rng.shuffle(data_use[:,i])
+        # data_use = 0.5*Lbox*rng.rand(data_use.shape[0],data_use.shape[1])
+        ##################
+
         # account for true-to-fiducial conversion (AP scaling) if requested
         if use_AP:
             # only use 1/8 (first octant) of box when true-to-fiducial scaling is requested
@@ -98,14 +115,6 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             data_use[:,los] *= alpha_par
             data_use[:,non_los] *= alpha_perp
             # DON'T wrap periodically after scaling
-
-            ##################
-            # test, using effectively random positions
-            print('... shuffling')
-            for i in range(3):
-                rng.shuffle(data_use[:,i])
-            # data_use = 0.5*Lbox*rng.rand(data_use.shape[0],data_use.shape[1])
-            ##################
         
     del data
     if down_to > 1:
@@ -167,7 +176,7 @@ if __name__ == "__main__":
     if Cosmo not in ['c000','c001']:
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
-    UseAP = True # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
+    UseAP = False # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
     Aniso = True # whether to report multipoles or real space measurement
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
@@ -266,7 +275,7 @@ if __name__ == "__main__":
     if UseAP & Aniso:
         scale_factors = [0.5*alpha_par,0.5*alpha_perp]
     else:
-        scale_factors = [1.,1.]
+        scale_factors = [0.5,0.5]#[1.,1.]
     
     start_time_setup = time()
     if Do_2pcf:

@@ -92,14 +92,16 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             del cond_keep
             print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
 
-            # apply anisotropic scaling
-            non_los = np.where(np.arange(3) != los)[0]
             ##################
             # test, using effectively random positions 
-            rng.shuffle(data_use[:,los])
-            for nl in non_los:
-                rng.shuffle(data_use[:,nl])
+            # rng.shuffle(data_use[:,los])
+            # for nl in non_los:
+            #     rng.shuffle(data_use[:,nl])
+            data_use = 0.5*Lbox*rng.rand(data_use.shape[0],data_use.shape[1])
             ##################
+            
+            # apply anisotropic scaling
+            non_los = np.where(np.arange(3) != los)[0]
             data_use[:,los] *= alpha_par
             data_use[:,non_los] *= alpha_perp
             # DON'T wrap periodically after scaling

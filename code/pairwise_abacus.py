@@ -81,7 +81,8 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data_use %= Lbox
 
         ##################
-        # test, using effectively random positions 
+        # test, using effectively random positions
+        print('... restricting to first octant')
         cond_keep = np.ones(data_use.shape[0],dtype=bool)
         for i in range(3):
             cond_keep = cond_keep & (data_use[:,i] <= 0.5*Lbox) # & (data_use[:,i] > 0.0) # last is always true
@@ -89,6 +90,8 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data = data[cond_keep]
         # data and data_use have same number of objects
         del cond_keep
+            print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
+        print('... shuffling')
         for i in range(3):
             rng.shuffle(data_use[:,i])
         # data_use = 0.5*Lbox*rng.rand(data_use.shape[0],data_use.shape[1])

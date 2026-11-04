@@ -90,7 +90,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         data = data[cond_keep]
         # data and data_use have same number of objects
         del cond_keep
-            print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
+        print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
         print('... shuffling')
         for i in range(3):
             rng.shuffle(data_use[:,i])

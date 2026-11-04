@@ -179,8 +179,8 @@ if __name__ == "__main__":
     UseAP = False # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
     Aniso = True # whether to report multipoles or real space measurement
     
-    Do_2pcf = False
-    Do_Pk = True
+    Do_2pcf = True
+    Do_Pk = False
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     

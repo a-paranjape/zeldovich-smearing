@@ -92,18 +92,18 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
             del cond_keep
             print('... ... finally kept {0:d} objects (first octant)'.format(data_use.shape[0]))
 
-            # apply anisotropic scaling
-            non_los = np.where(np.arange(3) != los)[0]
-            data_use[:,los] *= alpha_par
-            data_use[:,non_los] *= alpha_perp
-            # DON'T wrap periodically after scaling
-
             ##################
             # test, using effectively random positions 
             rng.shuffle(data_use[:,los])
             for nl in non_los:
                 rng.shuffle(data_use[:,nl])
             ##################
+
+            # apply anisotropic scaling
+            non_los = np.where(np.arange(3) != los)[0]
+            data_use[:,los] *= alpha_par
+            data_use[:,non_los] *= alpha_perp
+            # DON'T wrap periodically after scaling
         
     del data
     if down_to > 1:
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
     UseAP = True # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
-    Aniso = False # whether to report multipoles or real space measurement
+    Aniso = True # whether to report multipoles or real space measurement
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     
@@ -182,11 +182,11 @@ if __name__ == "__main__":
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,
                                  'phase':9 if Cosmo=='c000' else 0,'downto':4 if not (Aniso & UseAP) else 1}}
     
-    Do_2pcf = True
-    Do_Pk = False
+    Do_2pcf = False
+    Do_Pk = True
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
-    N_Phase = 25 if Cosmo == 'c000' else 1
+    N_Phase = 5#25 if Cosmo == 'c000' else 1
 
     # index of box to use as data
     Ref_Phase = config_dict[Sample]['phase'] 

@@ -74,7 +74,7 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
         zred += data_use[:,los]
         
         # store final los separation
-        data_use[:,los] = zred        
+        # data_use[:,los] = zred        
         del zred
         
         # account for pbc

@@ -82,6 +82,13 @@ def queuer_box(phase,tpcf,powspec,aniso,los,alpha_par,alpha_perp,redshift,M_min,
 
         ##################
         # test, using effectively random positions 
+        cond_keep = np.ones(data_use.shape[0],dtype=bool)
+        for i in range(3):
+            cond_keep = cond_keep & (data_use[:,i] <= 0.5*Lbox) # & (data_use[:,i] > 0.0) # last is always true
+        data_use = data_use[cond_keep]
+        data = data[cond_keep]
+        # data and data_use have same number of objects
+        del cond_keep
         for i in range(3):
             rng.shuffle(data_use[:,i])
         # data_use = 0.5*Lbox*rng.rand(data_use.shape[0],data_use.shape[1])

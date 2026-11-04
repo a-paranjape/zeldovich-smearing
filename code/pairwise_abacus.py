@@ -170,14 +170,17 @@ if __name__ == "__main__":
     ##################################
     # -- if this ends with '-xN' then stats will be averaged over N phases starting with ph000.
     # -- if not, then only one phase will be used, specified by Ref_Phase below.
-    Sample = 'DESI-LRG2' # 'DESI-LRG2','Euclid-ELG'
+    Sample = 'Euclid-ELG' # 'DESI-LRG2','Euclid-ELG'
 
     Cosmo = 'c000' # either 'c000' or 'c001'
     if Cosmo not in ['c000','c001']:
         raise Exception("Only c000 or c001 supported, not "+Cosmo)
 
-    UseAP = True # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
-    Aniso = True # whether to report multipoles or real space measurement
+    UseAP = False # whether or not to include Alcock-Paczynski scaling (only relevant if Aniso is True)
+    Aniso = False # whether to report multipoles or real space measurement
+    
+    Do_2pcf = False
+    Do_Pk = True
     
     print('AbacusSummit pairwise correlations for sample:',Sample)
     
@@ -192,9 +195,6 @@ if __name__ == "__main__":
                                  'phase':0,'downto':1},
                    'Euclid-ELG':{'redshift':1.10,'Mmin':1e12,
                                  'phase':9 if Cosmo=='c000' else 0,'downto':4 if not (Aniso & UseAP) else 1}}
-    
-    Do_2pcf = False
-    Do_Pk = True
 
     # number of boxes to analyse, should be > Ref_Phase, or equal to N in case of '-xN' filename
     N_Phase = 25 if Cosmo == 'c000' else 1

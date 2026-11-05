@@ -170,7 +170,7 @@ if __name__ == "__main__":
     ##################################
     # -- if this ends with '-xN' then stats will be averaged over N phases starting with ph000.
     # -- if not, then only one phase will be used, specified by Ref_Phase below.
-    Sample = 'Euclid-ELG' # 'DESI-LRG2','Euclid-ELG'
+    Sample = 'DESI-LRG2' # 'DESI-LRG2','Euclid-ELG'
 
     Cosmo = 'c000' # either 'c000' or 'c001'
     if Cosmo not in ['c000','c001']:
